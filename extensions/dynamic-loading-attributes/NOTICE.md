@@ -1,0 +1,1 @@
+["dynamic loading attributes"](https://github.com/mmattel/Antora-Asciidoc-Extensions/tree/main/antora/dynamic%20loading%20attributes) by [mmattel](https://github.com/mmattel) is licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html).
