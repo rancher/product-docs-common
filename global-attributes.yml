@@ -3,6 +3,8 @@ elemental-product-name: "SUSE® Rancher Prime: OS Manager"
 fleet-product-name: "SUSE® Rancher Prime: Continuous Delivery"
 harvester-product-name-tm: "SUSE® Virtualization"
 harvester-product-name: "SUSE Virtualization"
+k3k-product-name: "SUSE Virtual Clusters"
+k3k-product-name-tm: 'SUSE® Rancher Prime: Virtual Clusters'
 k3s-product-name: "SUSE® Rancher Prime: K3s"
 kubewarden-product-name: "SUSE® Rancher Prime: Admission Policy Manager"
 longhorn-product-name: "SUSE Storage"
@@ -14,6 +16,7 @@ rancher-product-name-tm: "SUSE® Rancher Prime"
 rancher-short-name: "Rancher"
 rke2-product-name: "SUSE® Rancher Prime: RKE2"
 rke2-short-name: "RKE2"
+stackstate-product-name: "SUSE® Observability"
 turtles-product-name: "SUSE® Rancher Prime: Cluster API"
 # shared header
 page-project-data: [
