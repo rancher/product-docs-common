@@ -1,0 +1,29 @@
+name: Test deployment (minimum validations)
+
+on:
+  workflow_call:
+    inputs:
+      playbook-name:
+        default: 'playbook-local.yml'
+        required: false
+        type: string
+
+jobs:
+  test-deploy:
+    name: Test deployment (minimum validations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Antora and dependencies
+        run: make environment
+      - name: Generate Site
+        run: |
+          npx antora --stacktrace \
+            --log-format=pretty \
+            --log-level=info \
+            ${{ inputs.playbook-name }}
