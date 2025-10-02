@@ -1,0 +1,39 @@
+#!/bin/bash
+
+IFS=$'\n'
+DOCS_DIR="docs"
+COMMUNITY_LINKS=(
+    "https://elemental.docs.rancher.com"
+    "https://fleet.rancher.io"
+    "https://docs.harvesterhci.io"
+    "https://docs.k3s.io"
+    "https://docs.kubewarden.io"
+    "https://longhorn.io/docs"
+    "https://open-docs.neuvector.com"
+    "https://ranchermanager.docs.rancher.com"
+    "https://docs.rke2.io"
+    "https://docs.stackstate.com"
+    "https://turtles.docs.rancher.com"
+)
+
+# Naming convention inconsistent. Check for other variation.
+if [ -d versions ]; then
+  DOCS_DIR="versions"
+fi
+
+if test -f tmp/community-links.log; then
+    rm tmp/community-links.log
+elif ! test -d tmp; then
+    mkdir tmp
+fi
+
+grep -rHn "${COMMUNITY_LINKS[*]}" $DOCS_DIR > tmp/community-links.log
+
+if  test -s tmp/community-links.log; then
+    echo "Links to Community docs found in the following. The results have been saved to tmp/community-links.log."
+    cat tmp/community-links.log
+    exit 1
+else
+    echo "No Community docs links found."
+    exit 0
+fi
