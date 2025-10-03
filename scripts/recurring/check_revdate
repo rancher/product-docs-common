@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# 
+# Checks for files in the /pages subdirectory that have been modified, but
+# do not have their corresponding :revdate attribute updated.
+#
+# $1 is the SHA of the starting comparison point, assumed to be the SHA of main.
+# $2 is the SHA of the ending comparison point, assumed to be the HEAD.
+# 
+# So, for example, invoke as
+# 
+# scripts/recurring/check_revdate
+#
+# scripts/recurring/check_revdate SHA1 SHA2
+#
+
+affected_files=()
+base_rev="${1:-main}"
+current_rev="${2:-$(git rev-parse HEAD)}"
+files_modified=$(git diff $base_rev..$current_rev --name-only)
+
+for file in $files_modified; do
+  if [[ $file == *"/pages/"* ]]; then
+    if ! (git diff $base_rev $current_rev $file | grep -q +:revdate); then
+      affected_files+=($file)
+    fi
+  fi
+done
+
+if [[ ${#affected_files[@]} -ne 0 ]]; then
+  for file in ${affected_files[@]}; do
+    echo $file
+  done
+fi

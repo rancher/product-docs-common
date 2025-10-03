@@ -1,0 +1,23 @@
+name: 'Check revdate'
+description: 'Checks for files in the /pages subdirectory that have been modified, but do not have their corresponding :revdate attribute updated.'
+runs:
+  using: 'composite'
+  steps:
+    - name: Check if revdate is missing
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        result=$(helpers/scripts/recurring/check_revdate ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+        if [[ -n "$result" ]]; then
+          echo "As of ${{ github.event.pull_request.head.sha }}, the following files have been modified without a corresponding update to the \`revdate\` page attribute. If this is intentional, please ignore this message. 
+          
+          For guidance on when to update the \`revdate\` page attribute, please refer to the [SUSE Style Guide](https://documentation.suse.com/style/current/single-html/style-guide-adoc/index.html#sec-revinfo).
+          
+          \`\`\`
+          $result
+          \`\`\`
+          " >> body.txt
+          gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body-file body.txt
+        fi
+      shell: bash

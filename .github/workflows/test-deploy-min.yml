@@ -15,12 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
+
+      - name: Checkout helper scripts
+        uses: actions/checkout@v4
+        with:
+          repository: rancher/product-docs-common
+          ref: main
+          sparse-checkout: |
+            scripts
+          sparse-checkout-cone-mode: false
+          path: helpers
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Check revdate
+        uses: rancher/product-docs-common/.github/actions/check-revdate-composite-action@main
+
       - name: Install Antora and dependencies
         run: make environment
+
       - name: Generate Site
         run: |
           npx antora --stacktrace \
