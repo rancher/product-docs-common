@@ -1,12 +1,15 @@
 name: 'Check revdate'
 description: 'Checks for files in the /pages subdirectory that have been modified, but do not have their corresponding :revdate attribute updated.'
+inputs:
+  token:
+    required: true
 runs:
   using: 'composite'
   steps:
     - name: Check if revdate is missing
       continue-on-error: true
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         result=$(helpers/scripts/recurring/check_revdate ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
         if [[ -n "$result" ]]; then
@@ -21,3 +24,4 @@ runs:
           gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body-file body.txt
         fi
       shell: bash
+      
