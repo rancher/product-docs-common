@@ -7,12 +7,14 @@ runs:
   using: 'composite'
   steps:
     - name: Check if revdate is missing
+      id: check-revdate
       continue-on-error: true
       env:
         GH_TOKEN: ${{ inputs.token }}
       run: |
         result=$(helpers/scripts/recurring/check_revdate ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
         if [[ -n "$result" ]]; then
+          mkdir comment-artifact
           echo "As of ${{ github.event.pull_request.head.sha }}, the following files have been modified without a corresponding update to the \`revdate\` page attribute. If this is intentional, please ignore this message. 
           
           For guidance on when to update the \`revdate\` page attribute, please refer to the [SUSE Style Guide](https://documentation.suse.com/style/current/single-html/style-guide-adoc/index.html#sec-revinfo).
@@ -20,8 +22,17 @@ runs:
           \`\`\`
           $result
           \`\`\`
-          " >> body.txt
-          gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body-file body.txt
+          " >> comment-artifact/body.txt
+          exit 0
+        else
+          exit 1
         fi
       shell: bash
+
+    - name: Upload comment-artifact
+      if: steps.check-revdate.conclusion == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: comment-artifact
+        path: comment-artifact
       
