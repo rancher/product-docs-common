@@ -25,7 +25,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_NUMBER=$(gh api /repos/${{ github.event.workflow_run.repository.full_name }}/commits/${{ github.event.workflow_run.head_sha }}/pulls --jq '.[0].number')
+          PR_NUMBER=$(cat comment-artifact/pr-num.txt)
           gh pr comment $PR_NUMBER \
            --edit-last \
            --create-if-none \
