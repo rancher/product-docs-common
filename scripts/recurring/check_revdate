@@ -17,7 +17,7 @@
 affected_files=()
 base_rev="${1:-main}"
 current_rev="${2:-$(git rev-parse HEAD)}"
-files_modified=$(git diff $base_rev..$current_rev --name-only)
+files_modified=$(git diff --name-only --diff-filter=d $base_rev..$current_rev )
 
 for file in $files_modified; do
   if [[ $file == *"/pages/"* ]]; then
