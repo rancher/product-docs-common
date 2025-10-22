@@ -21,7 +21,7 @@ jobs:
           name: comment-artifact
           path: comment-artifact
       - name: Add a PR comment
-        if: steps.download-artifact.conclusion == 'success'
+        if: steps.download-artifact.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
