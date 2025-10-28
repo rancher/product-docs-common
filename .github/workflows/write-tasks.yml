@@ -25,10 +25,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          touch comment-body.txt
           PR_NUMBER=$(cat comment-artifact/pr-num.txt)
+
+          for comment in comment-artifact/body-*.txt; do
+            cat $comment >> comment-body.txt
+            echo "" >> comment-body.txt 
+          done
+
           gh pr comment $PR_NUMBER \
            --edit-last \
            --create-if-none \
-           --body-file comment-artifact/body.txt \
+           --body-file comment-body.txt \
            --repo ${{ github.event.workflow_run.repository.full_name }}
       
