@@ -6,7 +6,7 @@ harvester-product-name: "SUSE Virtualization"
 k3k-product-name: "SUSE Virtual Clusters"
 k3k-product-name-tm: 'SUSE® Rancher Prime: Virtual Clusters'
 k3s-product-name: "SUSE® Rancher Prime: K3s"
-kubewarden-product-name: "SUSE® Rancher Prime: Admission Policy Manager"
+kubewarden-product-name: "SUSE Security Admission Controller"
 longhorn-product-name: "SUSE Storage"
 longhorn-product-name-tm: "SUSE® Storage"
 neuvector-product-name: "SUSE® Security"
@@ -20,12 +20,11 @@ stackstate-product-name: "SUSE® Observability"
 turtles-product-name: "SUSE® Rancher Prime: Cluster API"
 # shared header
 page-project-data: [
-  {'title': 'Policy Manager', 'url-part': 'policy-manager', 'url': 'https://documentation.suse.com/cloudnative/policy-manager'},
   {'title': 'Cluster API', 'url-part': 'cluster-api', 'url': 'https://documentation.suse.com/cloudnative/cluster-api'},
   {'title': 'Continuous Delivery', 'url-part': 'continuous-delivery', 'url': 'https://documentation.suse.com/cloudnative/continuous-delivery'},
   {'title': 'K3s', 'url-part': 'k3s', 'url': 'https://documentation.suse.com/cloudnative/k3s'},
   {'title': 'OS Manager', 'url-part': 'os-manager', 'url': 'https://documentation.suse.com/cloudnative/os-manager'},
-  {'title': 'Policy Manager', 'url-part': 'policy-manager', 'url': 'https://documentation.suse.com/cloudnative/policy-manager'},
+  {'title': 'Admission Controller', 'url-part': 'admission-controller', 'url': 'https://documentation.suse.com/cloudnative/admission-controller'},
   {'title': 'RKE2', 'url-part': 'rke2', 'url': 'https://documentation.suse.com/cloudnative/rke2'},
   {'title': 'SUSE Observability', 'url-part': 'suse-observability', 'url': 'https://documentation.suse.com/cloudnative/suse-observability'},
   {'title': 'SUSE Rancher Manager', 'url-part': 'rancher-manager', 'url': 'https://documentation.suse.com/cloudnative/rancher-manager'},
