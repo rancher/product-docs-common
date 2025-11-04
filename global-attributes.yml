@@ -34,3 +34,5 @@ page-project-data: [
   {'title': 'SUSE Virtualization', 'url-part': 'virtualization', 'url': 'https://documentation.suse.com/cloudnative/virtualization'},
   {'title': 'SUSE Virtual Clusters', 'url-part': 'virtual-clusters', 'url': 'https://documentation.suse.com/cloudnative/virtual-clusters'},
 ]
+# SUSE Observability feature flags
+stackstate-ff-install-observability-agent-to-your-cluster: true
