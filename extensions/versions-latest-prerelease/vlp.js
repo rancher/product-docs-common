@@ -1,9 +1,13 @@
+// Antora extension for managing symlinks to latest and prerelease
+// documentation versions
 'use strict'
-// remember to have 'semver' in package.json
+// Requires 'semver' in package.json for version parsing
 const semver = require('semver')
 const path = require('path')
 const fs = require('fs')
 
+
+// Enable debug output if VLP_DEBUG env var is set
 const debug = process.env.VLP_DEBUG === 'true';
 
 /**
@@ -17,10 +21,9 @@ function dprint(...args) {
 }
 
 /**
- * Creates a symlink at symlinkPath pointing to target.
+ * Creates a symlink at symlinkPath pointing to targetPath.
  * If symlinkPath exists and is not a directory, it is removed first.
- * @param {string} targetPath - The target path for the symlink.
- * @param {string} symlinkPath - The path where the symlink will be created.
+ * Directories are never overwritten to avoid accidental data loss.
  */
 function createSymlink(targetPath, symlinkPath) {
   if (fs.existsSync(symlinkPath)) {
@@ -36,29 +39,27 @@ function createSymlink(targetPath, symlinkPath) {
 }
 
 /**
- * Checks if the target path is within the base directory.
+ * Ensures symlink targets are within the intended output directory.
  * Prevents directory traversal vulnerabilities.
- * @param {string} base - The base directory.
- * @param {string} target - The target path to check.
- * @returns {boolean} True if safe, false otherwise.
  */
 function isSafePath(base, target) {
   const relative = path.relative(base, target);
   return !relative.startsWith('..') && !path.isAbsolute(relative);
 }
 
-// Global state
+
+// Output directory and version info for symlink/file creation
 let outputDir = null;
 const latestVersionsList = [];
 
+
+// Symlink and file names used for version pointers
 const LATEST_SYMLINK = 'latest';
 const DEV_SYMLINK = 'dev';
 const LATEST_DEV_FILE = 'latest_dev.txt';
 
 /**
- * Writes the latest_dev.txt file for a component.
- * @param {string} dir - Directory path.
- * @param {string} content - File content.
+ * Writes latest_dev.txt for a component, creating the directory if needed.
  */
 function writeLatestDevFile(dir, content) {
   try {
@@ -69,13 +70,22 @@ function writeLatestDevFile(dir, content) {
   }
 }
 
+
 /**
  * Antora extension entry point.
- * Registers event handlers for playbookBuilt, contentClassified, and sitePublished.
+ * Registers event handlers for playbookBuilt, contentClassified,
+ * and sitePublished.
+ *
+ * - playbookBuilt: Captures output directory from playbook config
+ * - contentClassified: Determines latest stable and prerelease versions
+ *   for each component and writes latest_dev.txt files
+ * - sitePublished: Creates symlinks ('latest', 'dev') for each component
+ *   to their respective versions
  */
+
 module.exports.register = function () {
 
-  // Capture the output directory from the playbook
+  // Capture output directory for later symlink and file creation
   this.once('playbookBuilt', ({ playbook }) => {
     if (playbook.output && playbook.output.dir) {
       outputDir = playbook.output.dir;
@@ -83,30 +93,35 @@ module.exports.register = function () {
   });
 
   this.once('contentClassified', ({ contentCatalog }) => {
+  // For each component, determine latest stable and prerelease versions
     contentCatalog.getComponents().forEach((component) => {
+  // Skip 'shared' component (not versioned)
       if (component.name === 'shared') return;
 
+  // Parse and coerce versions to semver objects
       const parsedVersions = component.versions.map(v => ({
         version: v.version,
         semver: semver.coerce(v.version),
         prerelease: v.prerelease
       })).filter(v => v.semver);
 
+  // Sort versions in descending order (latest first)
       parsedVersions.sort((a, b) => semver.rcompare(a.semver, b.semver));
 
+  // Find latest stable (no prerelease) and latest prerelease versions
       const latestStableObj = parsedVersions.find(
         v => v.prerelease === undefined);
       const latestPrereleaseObj = parsedVersions.find(
         v => v.prerelease !== undefined);
 
-      // Store for later symlink creation
+  // Store for later symlink creation in sitePublished
       latestVersionsList.push({
         componentName: component.name,
         latestStableObj,
         latestPrereleaseObj
       });
 
-      // Write latest_dev.txt
+  // Write latest_dev.txt file with latest version info
       const dirName = path.resolve(outputDir, component.name);
       let fileContent = `${component.name}\n`;
       if (latestStableObj)
@@ -121,10 +136,12 @@ module.exports.register = function () {
   });
 
   this.once('sitePublished', () => {
+  // Create symlinks for each component after site is published
     latestVersionsList.forEach(({ componentName,
       latestStableObj,
       latestPrereleaseObj }) => {
-      const dirName = path.resolve(outputDir, componentName);
+      const dirName = path.resolve(outputDir, component.name);
+  // For both stable and prerelease, create symlinks if version exists
       [
         { obj: latestStableObj, linkName: LATEST_SYMLINK },
         { obj: latestPrereleaseObj, linkName: DEV_SYMLINK }
@@ -139,10 +156,12 @@ module.exports.register = function () {
               'to',
               obj.version
             );
+            // Symlink points to the version directory
             const symlinkPath = path.join(dirName, linkName);
             const targetPath = path.relative(dirName,
               path.join(dirName,
                 obj.version));
+            // Only create symlink if path is safe
             if (isSafePath(outputDir, symlinkPath)) {
               createSymlink(targetPath, symlinkPath);
             }
