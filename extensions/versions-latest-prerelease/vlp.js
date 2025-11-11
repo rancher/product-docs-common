@@ -84,7 +84,11 @@ module.exports.register = function () {
 	this.once("playbookBuilt", ({ playbook }) => {
 		if (playbook.output?.dir) {
 			outputDir = playbook.output.dir;
+		} else {
+			// If output.dir is unset, use default 'build/site'
+			outputDir = "build/site";
 		}
+		dprint('outputDir is', outputDir);
 	});
 
 	this.once("contentClassified", ({ contentCatalog }) => {
