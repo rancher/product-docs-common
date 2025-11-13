@@ -1,0 +1,12 @@
+elemental   -  SUSE OS Manager
+fleet       -  SUSE Continuous Delivery
+harvester   -  SUSE Virtualisation
+k3k         -  SUSE Virtual Clusters
+k3s         -  K3
+kubewarden  -  SUSE Security Admission Controller
+longhorn    -  SUSE Storage
+neuvector   -  SUSE Security
+rancher     -  SUSE Rancher Manager
+rke2        -  SUSE RKE2
+stackstate  -  SUSE Observability
+turtles     -  Cluster API
