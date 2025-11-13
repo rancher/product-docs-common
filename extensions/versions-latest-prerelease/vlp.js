@@ -1,10 +1,10 @@
 // Antora extension for managing symlinks to latest and prerelease
 // documentation versions
-"use strict";
+
 // Requires 'semver' in package.json for version parsing
 const semver = require("semver");
-const path = require("path");
-const fs = require("fs");
+const path = require("node:path");
+const fs = require("node:fs");
 
 // Enable debug output if VLP_DEBUG env var is set
 const debug = process.env.VLP_DEBUG === "true";
@@ -14,9 +14,9 @@ const debug = process.env.VLP_DEBUG === "true";
  * @param {...any} args - Arguments to print.
  */
 function dprint(...args) {
-	if (debug) {
-		console.log("[vlp.js]", ...args);
-	}
+  if (debug) {
+    console.log("[vlp.js]", ...args);
+  }
 }
 
 /**
@@ -25,16 +25,16 @@ function dprint(...args) {
  * Directories are never overwritten to avoid accidental data loss.
  */
 function createSymlink(targetPath, symlinkPath) {
-	if (fs.existsSync(symlinkPath)) {
-		if (!fs.lstatSync(symlinkPath).isDirectory()) {
-			fs.unlinkSync(symlinkPath);
-		} else {
-			// If it's a directory, do not touch it
-			dprint("Not writing", symlinkPath, "because it is a directory");
-			return;
-		}
-	}
-	fs.symlinkSync(targetPath, symlinkPath);
+  if (fs.existsSync(symlinkPath)) {
+    if (!fs.lstatSync(symlinkPath).isDirectory()) {
+      fs.unlinkSync(symlinkPath);
+    } else {
+      // If it's a directory, do not touch it
+      dprint("Not writing", symlinkPath, "because it is a directory");
+      return;
+    }
+  }
+  fs.symlinkSync(targetPath, symlinkPath);
 }
 
 /**
@@ -43,12 +43,14 @@ function createSymlink(targetPath, symlinkPath) {
  */
 function isSafePath(base, target) {
   const relative = path.relative(base, target);
-	return !relative.startsWith("..") && !path.isAbsolute(relative);
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 // Output directory and version info for symlink/file creation
 let outputDir = null;
 const latestVersionsList = [];
+let startPageVersion = null;
+let startPageComponent = null;
 
 // Symlink and file names used for version pointers
 const LATEST_SYMLINK = "latest";
@@ -59,126 +61,182 @@ const LATEST_DEV_FILE = "latest_dev.txt";
  * Writes latest_dev.txt for a component, creating the directory if needed.
  */
 function writeLatestDevFile(dir, content) {
-	try {
-		fs.mkdirSync(dir, { recursive: true });
-		fs.writeFileSync(path.join(dir, LATEST_DEV_FILE), content, "utf8");
-	} catch (err) {
-		console.error(`Failed to write ${LATEST_DEV_FILE} in ${dir}:`, err);
-	}
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, LATEST_DEV_FILE), content, "utf8");
+  } catch (err) {
+    console.error(`Failed to write ${LATEST_DEV_FILE} in ${dir}:`, err);
+  }
 }
 
-/**
- * Antora extension entry point.
- * Registers event handlers for playbookBuilt, contentClassified,
- * and sitePublished.
+/** Antora extension entry point. Registers event handlers for playbookBuilt,
+ *  contentClassified, and sitePublished.
  *
  * - playbookBuilt: Captures output directory from playbook config
- * - contentClassified: Determines latest stable and prerelease versions
- *   for each component and writes latest_dev.txt files
- * - sitePublished: Creates symlinks ('latest', 'dev') for each component
- *   to their respective versions
+ * - contentClassified: Determines latest stable and prerelease versions for
+ *   each component and writes latest_dev.txt files
+ * - sitePublished: Creates symlinks ('latest', 'dev') for each component to
+ *   their respective versions
  */
 
 module.exports.register = function () {
-	// Capture output directory for later symlink and file creation
-	this.once("playbookBuilt", ({ playbook }) => {
-		if (playbook.output?.dir) {
-			outputDir = playbook.output.dir;
-		} else {
-			// If output.dir is unset, use default 'build/site'
-			outputDir = "build/site";
-		}
-		dprint('outputDir is', outputDir);
-	});
+  // Capture output directory for later symlink and file creation
+  this.once("playbookBuilt", ({ playbook }) => {
+    dprint("Entered playbookBuilt event");
+    if (playbook.output?.dir) {
+      outputDir = playbook.output.dir;
+    } else {
+      // If output.dir is unset, use default 'build/site'
+      outputDir = "build/site";
+    }
+    dprint("outputDir is", outputDir);
+    // Extract version and component from playbook.site.startPage
+    // (e.g. 1.29@admission-controller:en:introduction.adoc)
+    if (playbook.site?.startPage) {
+      dprint("playbook.site.startPage is", playbook.site.startPage);
+      const startPage = playbook.site.startPage;
+      // The version is the part before '@' in startPage
+      const versionMatch = startPage.match(/^([\w.-]+)@/);
+      if (versionMatch) {
+        startPageVersion = versionMatch[1];
+        dprint("Version from playbook.site.startPage is", startPageVersion);
+      }
+      // The component is the part between '@' and ':' in startPage
+      const compMatch = startPage.match(/^[\w.-]+@([\w.-]+):/);
+      if (compMatch) {
+        startPageComponent = compMatch[1];
+        dprint("Component from playbook.site.startPage is", startPageComponent);
+      }
+    }
+  });
 
-	this.once("contentClassified", ({ contentCatalog }) => {
-		// For each component, determine latest stable and prerelease versions
-		contentCatalog.getComponents().forEach((component) => {
-			// Skip 'shared' component (not versioned)
-			if (component.name === "shared") return;
+  this.once("contentClassified", ({ contentCatalog }) => {
+    // For each component, determine latest stable and prerelease versions
+    contentCatalog.getComponents().forEach((component) => {
+      // Skip 'shared' component (not versioned)
+      if (component.name === "shared") return;
 
-			// Parse and coerce versions to semver objects
-			const parsedVersions = component.versions
-				.map((v) => ({
-					version: v.version,
-					semver: semver.coerce(v.version),
-					prerelease: v.prerelease,
-				}))
-				.filter((v) => v.semver);
+      // Parse and coerce versions to semver objects
+      const parsedVersions = component.versions
+        .map((v) => ({
+          version: v.version,
+          semver: semver.coerce(v.version),
+          prerelease: v.prerelease,
+        }))
+        .filter((v) => v.semver);
 
-			// Sort versions in descending order (latest first)
-			parsedVersions.sort((a, b) => semver.rcompare(a.semver, b.semver));
+      // Sort versions in descending order (latest first)
+      parsedVersions.sort((a, b) => semver.rcompare(a.semver, b.semver));
 
-			// Find latest stable (no prerelease) and latest prerelease versions
-			const latestStableObj = parsedVersions.find(
-				(v) => v.prerelease === undefined,
-			);
-			const latestPrereleaseObj = parsedVersions.find(
-				(v) => v.prerelease !== undefined,
-			);
+      // Find latest stable (no prerelease) and latest prerelease versions
+      const latestStableObj = parsedVersions.find(
+        (v) => v.prerelease === undefined,
+      );
+      const latestPrereleaseObj = parsedVersions.find(
+        (v) => v.prerelease !== undefined,
+      );
 
-			// Store for later symlink creation in sitePublished
-			latestVersionsList.push({
-				componentName: component.name,
-				latestStableObj,
-				latestPrereleaseObj,
-			});
+      // Store for later symlink creation in sitePublished
+      latestVersionsList.push({
+        componentName: component.name,
+        latestStableObj,
+        latestPrereleaseObj,
+      });
 
-			// Write latest_dev.txt file with latest version info
-			const dirName = path.resolve(outputDir, component.name);
-			let fileContent = `${component.name}\n`;
-			if (latestStableObj)
-				fileContent += `latest: ${latestStableObj.version}\n`;
-			if (latestPrereleaseObj)
-				fileContent += `dev: ${latestPrereleaseObj.version}\n`;
+      // Write latest_dev.txt file with latest version info
+      const dirName = path.resolve(outputDir, component.name);
+      let fileContent = `${component.name}\n`;
+      if (latestStableObj)
+        fileContent += `latest: ${latestStableObj.version}\n`;
+      if (latestPrereleaseObj)
+        fileContent += `dev: ${latestPrereleaseObj.version}\n`;
 
-			dprint(
-				`In contentClassified:\n${component.name}/${LATEST_DEV_FILE} ` +
-					`will contain\n--------\n${fileContent}--------`,
-			);
-			writeLatestDevFile(dirName, fileContent);
-		});
-	});
+      dprint(
+        `In contentClassified:\n${component.name}/${LATEST_DEV_FILE} ` +
+          `will contain\n--------\n${fileContent}--------`,
+      );
+      writeLatestDevFile(dirName, fileContent);
+    });
+  });
 
-	this.once("sitePublished", () => {
-		// Create symlinks for each component after site is published
-		latestVersionsList.forEach(
-			({ componentName, latestStableObj, latestPrereleaseObj }) => {
-				const dirName = path.resolve(outputDir, componentName);
-				// For both stable and prerelease, create symlinks if version exists
-				[
-					{ obj: latestStableObj, linkName: LATEST_SYMLINK },
-					{ obj: latestPrereleaseObj, linkName: DEV_SYMLINK },
-				].forEach(({ obj, linkName }) => {
-					if (obj) {
-						try {
-							dprint(
-								"In sitePublished, for",
-								componentName,
-								"going to create symlink",
-								linkName,
-								"to",
-								obj.version,
-							);
-							// Symlink points to the version directory
-							const symlinkPath = path.join(dirName, linkName);
-							const targetPath = path.relative(
-								dirName,
-								path.join(dirName, obj.version),
-							);
-							// Only create symlink if path is safe
-							if (isSafePath(outputDir, symlinkPath)) {
-								createSymlink(targetPath, symlinkPath);
-							}
-						} catch (err) {
-							console.error(
-								`Failed to create symlink '${linkName}' in ${dirName}:`,
-								err,
-							);
-						}
-					}
-				});
-			},
-		);
-	});
+  this.once("sitePublished", () => {
+    // Create symlinks for each component after site is published
+    latestVersionsList.forEach(
+      ({ componentName, latestStableObj, latestPrereleaseObj }) => {
+        const dirName = path.resolve(outputDir, componentName);
+        // For both stable and prerelease, create symlinks if
+        // version exists
+        [
+          { obj: latestStableObj, linkName: LATEST_SYMLINK },
+          { obj: latestPrereleaseObj, linkName: DEV_SYMLINK },
+        ].forEach(({ obj, linkName }) => {
+          if (obj) {
+            try {
+              dprint(
+                "In sitePublished, for",
+                componentName,
+                "going to create symlink",
+                linkName,
+                "to",
+                obj.version,
+              );
+              // Symlink points to the version directory
+              const symlinkPath = path.join(dirName, linkName);
+              const targetPath = path.relative(
+                dirName,
+                path.join(dirName, obj.version),
+              );
+              // Only create symlink if path is safe
+              if (isSafePath(outputDir, symlinkPath)) {
+                createSymlink(targetPath, symlinkPath);
+              }
+            } catch (err) {
+              console.error(
+                `Failed to create symlink '${linkName}' in ${dirName}:`,
+                err,
+              );
+            }
+          }
+        });
+      },
+    );
+    // Now adjust index.html, point at latest, not a specific version.
+    dprint("Adjusting root index.html to point to latest versions");
+    const indexPath = path.join(outputDir, "index.html");
+    if (fs.existsSync(indexPath)) {
+      let indexContent = fs.readFileSync(indexPath, "utf8");
+      dprint("Original index.html content:", indexContent);
+      if (startPageComponent && startPageVersion) {
+        // Build the path to the 'latest' directory/symlink for the
+        // component
+        const latestPath = path.join(outputDir, startPageComponent, "latest");
+        dprint("Checking for existence of", latestPath);
+        // Proceed only if 'latest' exists
+        if (fs.existsSync(latestPath)) {
+          dprint(
+            `Updating index.html: ` +
+			`Replacing /${startPageComponent}/${startPageVersion}/ ` +
+			`with /${startPageComponent}/latest/`
+          );
+          // Build a regex to match URLs containing the version
+          // for this component
+          // and replace with 'latest'.
+          // Backup index.html before modifying
+          const backupPath = path.join(outputDir, "index.html.bkp");
+          fs.copyFileSync(indexPath, backupPath);
+          dprint(`Backed up index.html to ${backupPath}`);
+          const versionPattern = new RegExp(
+            `(${startPageComponent})/${startPageVersion}(/|\b)`, "g"
+          );
+          // Perform the replacement in index.html content
+          indexContent = indexContent.replace(versionPattern, "$1/latest$2");
+        } else {
+          // If 'latest' does not exist, skip the replacement
+          dprint(`Skipping index.html update: '${latestPath}' does not exist.`);
+        }
+      }
+      fs.writeFileSync(indexPath, indexContent, "utf8");
+      dprint("Updated index.html content:", indexContent);
+    }
+  });
 };
