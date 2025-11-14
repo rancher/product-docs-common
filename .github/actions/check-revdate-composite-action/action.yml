@@ -22,7 +22,7 @@ runs:
           \`\`\`
           $result
           \`\`\`
-          " >> comment-artifact/body.txt
+          " >> comment-artifact/body-revdate.txt
           echo ${{ github.event.pull_request.number }} >> comment-artifact/pr-num.txt
           exit 0
         else
