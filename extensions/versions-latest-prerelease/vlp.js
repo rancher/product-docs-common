@@ -1,5 +1,18 @@
-// Antora extension for managing symlinks to latest and prerelease
-// documentation versions
+// An Antora extension for managing symlinks to latest and prerelease
+// documentation versions.
+
+// This turned out to be necessary because the standard Antora mechanism for
+// providing links to 'latest' and 'dev' versions did not work on our
+// infrastructure. The standard mechanism, for Apache httpd used in our
+// infrastructure, generated a `.htaccess` file with 302 redirects. This could
+// not be made to work with our infrastructure. However, the Apache server can
+// be configured to 'FollowSymlinks'. This extension puts those symlinks in
+// place, in the build directory structure, after the Antora build.
+
+// Docs for the standard mechanism:
+// https://docs.antora.org/antora/latest/playbook/configure-urls/
+
+// Author: John Krug <john.krug@suse.com>
 
 // Requires 'semver' in package.json for version parsing
 const semver = require("semver");
