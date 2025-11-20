@@ -8,5 +8,6 @@ longhorn    -  SUSE Storage
 neuvector   -  SUSE Security
 rancher     -  SUSE Rancher Manager
 rke2        -  SUSE RKE2
+srfa        -  SUSE Rancher for AWS
 stackstate  -  SUSE Observability
 turtles     -  Cluster API

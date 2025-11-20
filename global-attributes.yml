@@ -4,16 +4,17 @@ fleet-product-name: "SUSE® Rancher Prime: Continuous Delivery"
 harvester-product-name-tm: "SUSE® Virtualization"
 harvester-product-name: "SUSE Virtualization"
 k3k-product-name: "SUSE Virtual Clusters"
-k3k-product-name-tm: 'SUSE® Rancher Prime: Virtual Clusters'
+k3k-product-name-tm: "SUSE® Rancher Prime: Virtual Clusters"
 k3s-product-name: "SUSE® Rancher Prime: K3s"
 kubewarden-product-name: "SUSE Security Admission Controller"
 longhorn-product-name: "SUSE Storage"
 longhorn-product-name-tm: "SUSE® Storage"
 neuvector-product-name: "SUSE® Security"
-rancher-prime: Cloud Native
-rancher-product-name: "SUSE Rancher Prime"
-rancher-product-name-tm: "SUSE® Rancher Prime"
-rancher-short-name: "Rancher"
+# Rancher attributes are soft set (@) so that they can be changed for SRFA
+rancher-prime: Cloud Native@
+rancher-product-name: SUSE Rancher Prime@
+rancher-product-name-tm: SUSE® Rancher Prime@
+rancher-short-name: Rancher@
 rke2-product-name: "SUSE® Rancher Prime: RKE2"
 rke2-short-name: "RKE2"
 stackstate-product-name: "SUSE® Observability"
@@ -28,6 +29,7 @@ page-project-data: [
   {'title': 'RKE2', 'url-part': 'rke2', 'url': 'https://documentation.suse.com/cloudnative/rke2'},
   {'title': 'SUSE Observability', 'url-part': 'suse-observability', 'url': 'https://documentation.suse.com/cloudnative/suse-observability'},
   {'title': 'SUSE Rancher Manager', 'url-part': 'rancher-manager', 'url': 'https://documentation.suse.com/cloudnative/rancher-manager'},
+  {'title': 'SUSE Rancher for AWS', 'url-part': 'rancher-srfa', 'url': 'https://documentation.suse.com/cloudnative/rancher-srfa'},
   {'title': 'SUSE Security', 'url-part': 'security', 'url': 'https://documentation.suse.com/cloudnative/security'},
   {'title': 'SUSE Storage', 'url-part': 'storage', 'url': 'https://documentation.suse.com/cloudnative/storage'},
   {'title': 'SUSE Virtualization', 'url-part': 'virtualization', 'url': 'https://documentation.suse.com/cloudnative/virtualization'},
