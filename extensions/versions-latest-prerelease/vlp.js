@@ -13,30 +13,36 @@
 // https://docs.antora.org/antora/latest/playbook/configure-urls/
 
 // Author: John Krug <john.krug@suse.com>
+// See: https://docs.antora.org/antora/latest/playbook/configure-urls/
 
 // Requires 'semver' in package.json for version parsing
 const semver = require("semver");
 const path = require("node:path");
 const fs = require("node:fs");
 
-// Enable debug output if VLP_DEBUG env var is set
+// Enable debug output if VLP_DEBUG environment variable is set
 const debug = process.env.VLP_DEBUG === "true";
 
-/**
- * Prints debug messages if debugging is enabled.
- * @param {...any} args - Arguments to print.
- */
+// Output directory and version info for symlink/file creation
+let outputDir = null;
+const latestVersionsList = [];
+let startPageVersion = null;
+let startPageComponent = null;
+
+// Symlink and file names used for version pointers
+const LATEST_SYMLINK = "latest";
+const DEV_SYMLINK = "dev";
+const LATEST_DEV_FILE = "latest_dev.txt";
+
+// Print debug messages if enabled, using dynamic filename label.
+const debugLabel = `[${require("node:path").basename(__filename)}]`;
 function dprint(...args) {
   if (debug) {
-    console.log("[vlp.js]", ...args);
+    console.log(debugLabel, ...args);
   }
 }
 
-/**
- * Creates a symlink at symlinkPath pointing to targetPath.
- * If symlinkPath exists and is not a directory, it is removed first.
- * Directories are never overwritten to avoid accidental data loss.
- */
+// Create symlink, avoiding directories.
 function createSymlink(targetPath, symlinkPath) {
   if (fs.existsSync(symlinkPath)) {
     if (!fs.lstatSync(symlinkPath).isDirectory()) {
@@ -50,29 +56,75 @@ function createSymlink(targetPath, symlinkPath) {
   fs.symlinkSync(targetPath, symlinkPath);
 }
 
-/**
- * Ensures symlink targets are within the intended output directory.
- * Prevents directory traversal vulnerabilities.
- */
+// Ensure symlink targets are safe.
 function isSafePath(base, target) {
   const relative = path.relative(base, target);
   return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-// Output directory and version info for symlink/file creation
-let outputDir = null;
-const latestVersionsList = [];
-let startPageVersion = null;
-let startPageComponent = null;
+// Rewrite xrefs to latest/dev versions.
+function modifyXrefsInText(fileText, file, latestVersionsList) {
+  const regex = new RegExp(
+    `xref:(${LATEST_SYMLINK}|${DEV_SYMLINK})@([^:]+):([^\s[]+)`,
+    "g",
+  );
+  let match = regex.exec(fileText);
+  let newFileText = fileText;
+  let xrefsModified = 0;
+  while (match !== null) {
+    const versionType = match[1];
+    const targetComponent = match[2];
+    const targetFile = match[3];
+    dprint(
+      `[MODIFIABLE XREF FOUND] Version: ${versionType}, Target Component: ` +
+        `${targetComponent}, Target File: ${targetFile}, File: ${file.src?.path}`,
+    );
 
-// Symlink and file names used for version pointers
-const LATEST_SYMLINK = "latest";
-const DEV_SYMLINK = "dev";
-const LATEST_DEV_FILE = "latest_dev.txt";
+    // Look up the correct version from latestVersionsList
+    const compEntry = latestVersionsList.find(
+      (e) => e.componentName === targetComponent,
+    );
+    let actualVersion = null;
+    if (compEntry) {
+      if (versionType === LATEST_SYMLINK && compEntry.latestStableObj) {
+        actualVersion = compEntry.latestStableObj.version;
+      } else if (versionType === DEV_SYMLINK && compEntry.latestPrereleaseObj) {
+        actualVersion = compEntry.latestPrereleaseObj.version;
+      }
+    }
+    if (actualVersion) {
+      // Build the new xref with full filename
+      const newXref = `xref:${actualVersion}@${targetComponent}:${targetFile}`;
+      dprint(`[XREF MODIFIED] ${newXref}`);
+      // Replace the original xref in newFileText
+      const originalXref = match[0];
+      // Find the line containing the original xref
+      const lines = newFileText.split(/\r?\n/);
+      const modifiedLine = lines.find((line) => line.includes(originalXref));
+      if (modifiedLine) {
+        dprint(`[MODIFIED LINE] ${modifiedLine}`);
+      }
+      newFileText = newFileText.replace(originalXref, newXref);
+      xrefsModified++;
+    } else {
+      dprint(
+        `[XREF MODIFIED] No version found for ${versionType} in component ` +
+          `${targetComponent}`,
+      );
+    }
+    match = regex.exec(newFileText);
+  }
+  // Print summary if any xrefs were modified
+  if (xrefsModified > 0) {
+    console.log(
+      `${debugLabel} Modified ${xrefsModified} xref(s) in ` +
+        `file: ${file.src?.path}`,
+    );
+  }
+  return newFileText;
+}
 
-/**
- * Writes latest_dev.txt for a component, creating the directory if needed.
- */
+// Write latest_dev.txt for a component.
 function writeLatestDevFile(dir, content) {
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -82,15 +134,8 @@ function writeLatestDevFile(dir, content) {
   }
 }
 
-/** Antora extension entry point. Registers event handlers for playbookBuilt,
- *  contentClassified, and sitePublished.
- *
- * - playbookBuilt: Captures output directory from playbook config
- * - contentClassified: Determines latest stable and prerelease versions for
- *   each component and writes latest_dev.txt files
- * - sitePublished: Creates symlinks ('latest', 'dev') for each component to
- *   their respective versions
- */
+// Extension entry point: hooks into playbookBuilt, contentClassified,
+// sitePublished.
 
 module.exports.register = function () {
   // Capture output directory for later symlink and file creation
@@ -170,6 +215,43 @@ module.exports.register = function () {
       );
       writeLatestDevFile(dirName, fileContent);
     });
+
+    contentCatalog.findBy({ mediaType: "text/asciidoc" }).forEach((file) => {
+      try {
+        // Skip nav.adoc files, files in the shared component, or undefined
+        // filename
+        const basename = file.src?.basename;
+        const compName = file.component?.name || file.src?.component;
+        const filename = file.src?.path;
+
+        // Skip files that are nav.adoc, in the shared component, or have no
+        // filename
+        if (!filename || basename === "nav.adoc" || compName === "shared") {
+          return;
+        }
+
+        // Output component name and version from file.src if available
+        if (file.src?.component && file.src?.version) {
+          dprint(
+            `[SRC COMPONENT INFO] Component: ${file.src.component}, ` +
+              `Version: ${file.src.version}, File: ${file.src.path}`,
+          );
+        }
+
+        // Scan file for 'xref:latest@' or 'xref:dev@' and modify them
+        const fileText = file.contents?.toString();
+        if (fileText) {
+          const newFileText = modifyXrefsInText(
+            fileText,
+            file,
+            latestVersionsList,
+          );
+          file.contents = Buffer.from(newFileText);
+        }
+      } catch (err) {
+        console.error(`[vlp.js] Error processing file: ${file.src?.path}`, err);
+      }
+    });
   });
 
   this.once("sitePublished", () => {
@@ -228,8 +310,8 @@ module.exports.register = function () {
         if (fs.existsSync(latestPath)) {
           dprint(
             `Updating index.html: ` +
-			`Replacing /${startPageComponent}/${startPageVersion}/ ` +
-			`with /${startPageComponent}/latest/`
+              `Replacing /${startPageComponent}/${startPageVersion}/ ` +
+              `with /${startPageComponent}/latest/`,
           );
           // Build a regex to match URLs containing the version
           // for this component
@@ -239,7 +321,8 @@ module.exports.register = function () {
           fs.copyFileSync(indexPath, backupPath);
           dprint(`Backed up index.html to ${backupPath}`);
           const versionPattern = new RegExp(
-            `(${startPageComponent})/${startPageVersion}(/|\b)`, "g"
+            `(${startPageComponent})/${startPageVersion}(/|\b)`,
+            "g",
           );
           // Perform the replacement in index.html content
           indexContent = indexContent.replace(versionPattern, "$1/latest$2");
