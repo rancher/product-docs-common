@@ -9,6 +9,11 @@
 // be configured to 'FollowSymlinks'. This extension puts those symlinks in
 // place, in the build directory structure, after the Antora build.
 
+// Additionally, this extension modifies 'xref:' links in AsciiDoc files that
+// point to 'latest' or 'dev' versions to point to the actual latest stable or
+// prerelease version numbers. This ensures that cross-references resolve
+// correctly during the Antora build.
+
 // Docs for the standard mechanism:
 // https://docs.antora.org/antora/latest/playbook/configure-urls/
 
@@ -218,8 +223,6 @@ module.exports.register = function () {
 
     contentCatalog.findBy({ mediaType: "text/asciidoc" }).forEach((file) => {
       try {
-        // Skip nav.adoc files, files in the shared component, or undefined
-        // filename
         const basename = file.src?.basename;
         const compName = file.component?.name || file.src?.component;
         const filename = file.src?.path;
