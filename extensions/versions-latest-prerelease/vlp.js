@@ -43,7 +43,10 @@ const LATEST_DEV_FILE = "latest_dev.txt";
 const debugLabel = `[${require("node:path").basename(__filename)}]`;
 function dprint(...args) {
   if (debug) {
-    console.log(debugLabel, ...args);
+    console.log(
+      debugLabel,
+      ...args
+    );
   }
 }
 
@@ -54,7 +57,11 @@ function createSymlink(targetPath, symlinkPath) {
       fs.unlinkSync(symlinkPath);
     } else {
       // If it's a directory, do not touch it
-      dprint("Not writing", symlinkPath, "because it is a directory");
+      dprint(
+        "Not writing",
+        symlinkPath,
+        "because it is a directory"
+      );
       return;
     }
   }
@@ -67,22 +74,29 @@ function isSafePath(base, target) {
   return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-// Rewrite xrefs to latest/dev versions.
+// Rewrite xrefs to be latest/dev versions.
 function modifyXrefsInText(fileText, file, latestVersionsList) {
   const regex = new RegExp(
-    `xref:(${LATEST_SYMLINK}|${DEV_SYMLINK})@([^:]+):([^\s[]+)`,
+     `xref:(${LATEST_SYMLINK}|${DEV_SYMLINK})@([^:]+):([^[]+)`,
     "g",
   );
   let match = regex.exec(fileText);
   let newFileText = fileText;
   let xrefsModified = 0;
   while (match !== null) {
+    dprint(
+      `[XREF REGEX MATCH] Full match: '${match[0]}' | ` +
+      `Group 1 (version): '${match[1]}' | ` +
+      `Group 2 (component): '${match[2]}' | ` +
+      `Group 3 (file): '${match[3]}' | ` +
+      `File: ${file.src?.path}`
+    );
     const versionType = match[1];
     const targetComponent = match[2];
     const targetFile = match[3];
     dprint(
       `[MODIFIABLE XREF FOUND] Version: ${versionType}, Target Component: ` +
-        `${targetComponent}, Target File: ${targetFile}, File: ${file.src?.path}`,
+      `${targetComponent}, Target File: ${targetFile}, File: ${file.src?.path}`
     );
 
     // Look up the correct version from latestVersionsList
@@ -100,21 +114,25 @@ function modifyXrefsInText(fileText, file, latestVersionsList) {
     if (actualVersion) {
       // Build the new xref with full filename
       const newXref = `xref:${actualVersion}@${targetComponent}:${targetFile}`;
-      dprint(`[XREF MODIFIED] ${newXref}`);
+      dprint(
+        `[XREF MODIFIED] ${newXref}`
+      );
       // Replace the original xref in newFileText
       const originalXref = match[0];
       // Find the line containing the original xref
       const lines = newFileText.split(/\r?\n/);
       const modifiedLine = lines.find((line) => line.includes(originalXref));
       if (modifiedLine) {
-        dprint(`[MODIFIED LINE] ${modifiedLine}`);
+        dprint(
+          `[MODIFIED LINE] ${modifiedLine}`
+        );
       }
       newFileText = newFileText.replace(originalXref, newXref);
       xrefsModified++;
     } else {
       dprint(
-        `[XREF MODIFIED] No version found for ${versionType} in component ` +
-          `${targetComponent}`,
+        `[XREF MODIFIED] No replacement version found for ${versionType} ` +
+        `in component ${targetComponent}`
       );
     }
     match = regex.exec(newFileText);
@@ -123,7 +141,7 @@ function modifyXrefsInText(fileText, file, latestVersionsList) {
   if (xrefsModified > 0) {
     console.log(
       `${debugLabel} Modified ${xrefsModified} xref(s) in ` +
-        `file: ${file.src?.path}`,
+      `file: ${file.src?.path}`
     );
   }
   return newFileText;
@@ -135,7 +153,10 @@ function writeLatestDevFile(dir, content) {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, LATEST_DEV_FILE), content, "utf8");
   } catch (err) {
-    console.error(`Failed to write ${LATEST_DEV_FILE} in ${dir}:`, err);
+    console.error(
+      `Failed to write ${LATEST_DEV_FILE} in ${dir}:`,
+      err
+    );
   }
 }
 
@@ -216,12 +237,13 @@ module.exports.register = function () {
 
       dprint(
         `In contentClassified:\n${component.name}/${LATEST_DEV_FILE} ` +
-          `will contain\n--------\n${fileContent}--------`,
+        `will contain\n--------\n${fileContent}--------`
       );
       writeLatestDevFile(dirName, fileContent);
     });
 
     contentCatalog.findBy({ mediaType: "text/asciidoc" }).forEach((file) => {
+      dprint("Entered contentClassified file processing loop");
       try {
         const basename = file.src?.basename;
         const compName = file.component?.name || file.src?.component;
@@ -233,17 +255,25 @@ module.exports.register = function () {
           return;
         }
 
+        dprint(
+          `[PROCESSING FILE] Component: ${compName}, File: ${filename}`
+        );
+
         // Output component name and version from file.src if available
         if (file.src?.component && file.src?.version) {
           dprint(
             `[SRC COMPONENT INFO] Component: ${file.src.component}, ` +
-              `Version: ${file.src.version}, File: ${file.src.path}`,
+            `Version: ${file.src.version}, File: ${file.src.path}`
           );
         }
 
         // Scan file for 'xref:latest@' or 'xref:dev@' and modify them
         const fileText = file.contents?.toString();
         if (fileText) {
+          dprint(
+            `[SCANNING FILE] Scanning for xref:(latest|dev)@ in ` +
+            `component: ${compName}, file: ${file.src?.path}`
+          );
           const newFileText = modifyXrefsInText(
             fileText,
             file,
@@ -276,7 +306,7 @@ module.exports.register = function () {
                 "going to create symlink",
                 linkName,
                 "to",
-                obj.version,
+                obj.version
               );
               // Symlink points to the version directory
               const symlinkPath = path.join(dirName, linkName);
@@ -313,8 +343,8 @@ module.exports.register = function () {
         if (fs.existsSync(latestPath)) {
           dprint(
             `Updating index.html: ` +
-              `Replacing /${startPageComponent}/${startPageVersion}/ ` +
-              `with /${startPageComponent}/latest/`,
+            `Replacing /${startPageComponent}/${startPageVersion}/ ` +
+            `with /${startPageComponent}/latest/`
           );
           // Build a regex to match URLs containing the version
           // for this component
@@ -322,7 +352,9 @@ module.exports.register = function () {
           // Backup index.html before modifying
           const backupPath = path.join(outputDir, "index.html.bkp");
           fs.copyFileSync(indexPath, backupPath);
-          dprint(`Backed up index.html to ${backupPath}`);
+          dprint(
+            `Backed up index.html to ${backupPath}`
+          );
           const versionPattern = new RegExp(
             `(${startPageComponent})/${startPageVersion}(/|\b)`,
             "g",
@@ -331,11 +363,16 @@ module.exports.register = function () {
           indexContent = indexContent.replace(versionPattern, "$1/latest$2");
         } else {
           // If 'latest' does not exist, skip the replacement
-          dprint(`Skipping index.html update: '${latestPath}' does not exist.`);
+          dprint(
+            `Skipping index.html update: '${latestPath}' does not exist.`
+          );
         }
       }
       fs.writeFileSync(indexPath, indexContent, "utf8");
-      dprint("Updated index.html content:", indexContent);
+      dprint(
+        "Updated index.html content:",
+        indexContent
+      );
     }
   });
 };
