@@ -30,9 +30,9 @@ const debug = process.env.VLP_DEBUG === "true";
 
 // Output directory and version info for symlink/file creation
 let outputDir = null;
-const latestVersionsList = [];
-let startPageVersion = null;
-let startPageComponent = null;
+const componentVersions = [];
+let startPageVersionStr = null;
+let startPageComponentName = null;
 
 // Symlink and file names used for version pointers
 const LATEST_SYMLINK = "latest";
@@ -50,7 +50,12 @@ function dprint(...args) {
   }
 }
 
-// Create symlink, avoiding directories.
+/**
+ * Creates a symlink at symlinkPath pointing to targetPath, avoiding directories.
+ * If symlinkPath exists and is not a directory, it is replaced.
+ * @param {string} targetPath - The target path for the symlink.
+ * @param {string} symlinkPath - The path where the symlink will be created.
+ */
 function createSymlink(targetPath, symlinkPath) {
   if (fs.existsSync(symlinkPath)) {
     if (!fs.lstatSync(symlinkPath).isDirectory()) {
@@ -68,40 +73,45 @@ function createSymlink(targetPath, symlinkPath) {
   fs.symlinkSync(targetPath, symlinkPath);
 }
 
-// Ensure symlink targets are safe.
+/**
+ * Checks if the target path is safe (not outside base and not absolute).
+ * @param {string} base - The base directory.
+ * @param {string} target - The target path to check.
+ * @returns {boolean} True if safe, false otherwise.
+ */
 function isSafePath(base, target) {
   const relative = path.relative(base, target);
   return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-// Rewrite xrefs to be latest/dev versions.
-function modifyXrefsInText(fileText, file, latestVersionsList) {
+/**
+ * Rewrites xref links in AsciiDoc text to point to actual latest/dev versions.
+ * @param {string} fileText - The file contents as text.
+ * @param {object} file - The file object from Antora content catalog.
+ * @param {Array} componentVersions - Array of component version info.
+ * @returns {string} The modified file text.
+ */
+function modifyXrefsInText(fileText, file, componentVersions) {
   const regex = new RegExp(
-     `xref:(${LATEST_SYMLINK}|${DEV_SYMLINK})@([^:]+):([^[]+)`,
-    "g",
+    `xref:(${LATEST_SYMLINK}|${DEV_SYMLINK})@([^:]+):([^[]+)`,
+    "g"
   );
-  let match = regex.exec(fileText);
-  let newFileText = fileText;
   let xrefsModified = 0;
-  while (match !== null) {
+  const newFileText = fileText.replace(regex, (originalXref, versionType, targetComponent, targetFile) => {
     dprint(
-      `[XREF REGEX MATCH] Full match: '${match[0]}' | ` +
-      `Group 1 (version): '${match[1]}' | ` +
-      `Group 2 (component): '${match[2]}' | ` +
-      `Group 3 (file): '${match[3]}' | ` +
+      `[XREF REGEX MATCH] Full match: '${originalXref}' | ` +
+      `Group 1 (version): '${versionType}' | ` +
+      `Group 2 (component): '${targetComponent}' | ` +
+      `Group 3 (file): '${targetFile}' | ` +
       `File: ${file.src?.path}`
     );
-    const versionType = match[1];
-    const targetComponent = match[2];
-    const targetFile = match[3];
     dprint(
       `[MODIFIABLE XREF FOUND] Version: ${versionType}, Target Component: ` +
       `${targetComponent}, Target File: ${targetFile}, File: ${file.src?.path}`
     );
-
-    // Look up the correct version from latestVersionsList
-    const compEntry = latestVersionsList.find(
-      (e) => e.componentName === targetComponent,
+    // Look up the correct version from componentVersions
+    const compEntry = componentVersions.find(
+      (e) => e.componentName === targetComponent
     );
     let actualVersion = null;
     if (compEntry) {
@@ -112,42 +122,39 @@ function modifyXrefsInText(fileText, file, latestVersionsList) {
       }
     }
     if (actualVersion) {
-      // Build the new xref with full filename
       const newXref = `xref:${actualVersion}@${targetComponent}:${targetFile}`;
-      dprint(
-        `[XREF MODIFIED] ${newXref}`
-      );
-      // Replace the original xref in newFileText
-      const originalXref = match[0];
+      dprint(`[XREF MODIFIED] ${newXref}`);
       // Find the line containing the original xref
-      const lines = newFileText.split(/\r?\n/);
+      const lines = fileText.split(/\r?\n/);
       const modifiedLine = lines.find((line) => line.includes(originalXref));
       if (modifiedLine) {
-        dprint(
-          `[MODIFIED LINE] ${modifiedLine}`
-        );
+        dprint(`[MODIFIED LINE] ${modifiedLine}`);
       }
-      newFileText = newFileText.replace(originalXref, newXref);
       xrefsModified++;
+      return newXref;
     } else {
       dprint(
         `[XREF MODIFIED] No replacement version found for ${versionType} ` +
         `in component ${targetComponent}`
       );
+      return originalXref;
     }
-    match = regex.exec(newFileText);
-  }
+  });
   // Print summary if any xrefs were modified
   if (xrefsModified > 0) {
+    const compName = file.component?.name || file.src?.component || "unknown";
     console.log(
-      `${debugLabel} Modified ${xrefsModified} xref(s) in ` +
-      `file: ${file.src?.path}`
+      `${debugLabel} Modified ${xrefsModified} xref(s) in file: ${file.src?.path} (component: ${compName})`
     );
   }
   return newFileText;
 }
 
-// Write latest_dev.txt for a component.
+/**
+ * Writes the latest_dev.txt file for a component with version info.
+ * @param {string} dir - Directory to write the file in.
+ * @param {string} content - Content to write to the file.
+ */
 function writeLatestDevFile(dir, content) {
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -182,14 +189,14 @@ module.exports.register = function () {
       // The version is the part before '@' in startPage
       const versionMatch = startPage.match(/^([\w.-]+)@/);
       if (versionMatch) {
-        startPageVersion = versionMatch[1];
-        dprint("Version from playbook.site.startPage is", startPageVersion);
+        startPageVersionStr = versionMatch[1];
+        dprint("Version from playbook.site.startPage is", startPageVersionStr);
       }
       // The component is the part between '@' and ':' in startPage
       const compMatch = startPage.match(/^[\w.-]+@([\w.-]+):/);
       if (compMatch) {
-        startPageComponent = compMatch[1];
-        dprint("Component from playbook.site.startPage is", startPageComponent);
+        startPageComponentName = compMatch[1];
+        dprint("Component from playbook.site.startPage is", startPageComponentName);
       }
     }
   });
@@ -221,7 +228,7 @@ module.exports.register = function () {
       );
 
       // Store for later symlink creation in sitePublished
-      latestVersionsList.push({
+      componentVersions.push({
         componentName: component.name,
         latestStableObj,
         latestPrereleaseObj,
@@ -277,7 +284,7 @@ module.exports.register = function () {
           const newFileText = modifyXrefsInText(
             fileText,
             file,
-            latestVersionsList,
+            componentVersions,
           );
           file.contents = Buffer.from(newFileText);
         }
@@ -289,16 +296,16 @@ module.exports.register = function () {
 
   this.once("sitePublished", () => {
     // Create symlinks for each component after site is published
-    latestVersionsList.forEach(
+    componentVersions.forEach(
       ({ componentName, latestStableObj, latestPrereleaseObj }) => {
         const dirName = path.resolve(outputDir, componentName);
         // For both stable and prerelease, create symlinks if
         // version exists
         [
-          { obj: latestStableObj, linkName: LATEST_SYMLINK },
-          { obj: latestPrereleaseObj, linkName: DEV_SYMLINK },
-        ].forEach(({ obj, linkName }) => {
-          if (obj) {
+          { versionObj: latestStableObj, linkName: LATEST_SYMLINK },
+          { versionObj: latestPrereleaseObj, linkName: DEV_SYMLINK },
+        ].forEach(({ versionObj, linkName }) => {
+          if (versionObj) {
             try {
               dprint(
                 "In sitePublished, for",
@@ -306,13 +313,13 @@ module.exports.register = function () {
                 "going to create symlink",
                 linkName,
                 "to",
-                obj.version
+                versionObj.version
               );
               // Symlink points to the version directory
               const symlinkPath = path.join(dirName, linkName);
               const targetPath = path.relative(
                 dirName,
-                path.join(dirName, obj.version),
+                path.join(dirName, versionObj.version),
               );
               // Only create symlink if path is safe
               if (isSafePath(outputDir, symlinkPath)) {
@@ -334,17 +341,17 @@ module.exports.register = function () {
     if (fs.existsSync(indexPath)) {
       let indexContent = fs.readFileSync(indexPath, "utf8");
       dprint("Original index.html content:", indexContent);
-      if (startPageComponent && startPageVersion) {
+      if (startPageComponentName && startPageVersionStr) {
         // Build the path to the 'latest' directory/symlink for the
         // component
-        const latestPath = path.join(outputDir, startPageComponent, "latest");
+        const latestPath = path.join(outputDir, startPageComponentName, "latest");
         dprint("Checking for existence of", latestPath);
         // Proceed only if 'latest' exists
         if (fs.existsSync(latestPath)) {
           dprint(
             `Updating index.html: ` +
-            `Replacing /${startPageComponent}/${startPageVersion}/ ` +
-            `with /${startPageComponent}/latest/`
+            `Replacing /${startPageComponentName}/${startPageVersionStr}/ ` +
+            `with /${startPageComponentName}/latest/`
           );
           // Build a regex to match URLs containing the version
           // for this component
@@ -356,7 +363,7 @@ module.exports.register = function () {
             `Backed up index.html to ${backupPath}`
           );
           const versionPattern = new RegExp(
-            `(${startPageComponent})/${startPageVersion}(/|\b)`,
+            `(${startPageComponentName})/${startPageVersionStr}(/|\b)`,
             "g",
           );
           // Perform the replacement in index.html content
