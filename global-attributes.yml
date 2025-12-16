@@ -19,19 +19,79 @@ rke2-product-name: "SUSE® Rancher Prime: RKE2"
 rke2-short-name: "RKE2"
 stackstate-product-name: "SUSE® Observability"
 turtles-product-name: "SUSE® Rancher Prime: Cluster API"
-# shared header
+
+# shared header and JSON-LD data
+# fullTitle can be added where needed/required.
 page-project-data: [
-  {'title': 'Cluster API', 'url-part': 'cluster-api', 'url': 'https://documentation.suse.com/cloudnative/cluster-api'},
-  {'title': 'Continuous Delivery', 'url-part': 'continuous-delivery', 'url': 'https://documentation.suse.com/cloudnative/continuous-delivery'},
-  {'title': 'K3s', 'url-part': 'k3s', 'url': 'https://documentation.suse.com/cloudnative/k3s'},
-  {'title': 'OS Manager', 'url-part': 'os-manager', 'url': 'https://documentation.suse.com/cloudnative/os-manager'},
-  {'title': 'Admission Controller', 'url-part': 'admission-controller', 'url': 'https://documentation.suse.com/cloudnative/admission-controller'},
-  {'title': 'RKE2', 'url-part': 'rke2', 'url': 'https://documentation.suse.com/cloudnative/rke2'},
-  {'title': 'SUSE Observability', 'url-part': 'suse-observability', 'url': 'https://documentation.suse.com/cloudnative/suse-observability'},
-  {'title': 'SUSE Rancher Manager', 'url-part': 'rancher-manager', 'url': 'https://documentation.suse.com/cloudnative/rancher-manager'},
-  {'title': 'SUSE Rancher for AWS', 'url-part': 'rancher-srfa', 'url': 'https://documentation.suse.com/cloudnative/rancher-srfa'},
-  {'title': 'SUSE Security', 'url-part': 'security', 'url': 'https://documentation.suse.com/cloudnative/security'},
-  {'title': 'SUSE Storage', 'url-part': 'storage', 'url': 'https://documentation.suse.com/cloudnative/storage'},
-  {'title': 'SUSE Virtualization', 'url-part': 'virtualization', 'url': 'https://documentation.suse.com/cloudnative/virtualization'},
-  {'title': 'SUSE Virtual Clusters', 'url-part': 'virtual-clusters', 'url': 'https://documentation.suse.com/cloudnative/virtual-clusters'},
+  {
+    'url-part': 'cluster-api',
+    'title': 'Cluster API',
+    'url': 'https://documentation.suse.com/cloudnative/cluster-api',
+    'fullTitle': 'SUSE Rancher Prime Cluster API'
+  },
+  {
+    'url-part': 'continuous-delivery',
+    'title': 'Continuous Delivery',
+    'url': 'https://documentation.suse.com/cloudnative/continuous-delivery',
+    'fullTitle': 'SUSE Rancher Prime Continuous Delivery'
+  },
+  {
+    'url-part': 'k3s',
+    'title': 'K3s',
+    'url': 'https://documentation.suse.com/cloudnative/k3s',
+    'fullTitle': 'SUSE Rancher Prime: K3s'
+  },
+  {
+    'url-part': 'os-manager',
+    'title': 'OS Manager',
+    'url': 'https://documentation.suse.com/cloudnative/os-manager',
+    'fullTitle': 'SUSE Rancher Prime: OS Manager'
+  },
+  {
+    'url-part': 'admission-controller',
+    'title': 'Admission Controller',
+    'url': 'https://documentation.suse.com/cloudnative/admission-controller',
+    'fullTitle': 'SUSE Security Admission Controller'
+  },
+  {
+    'url-part': 'rke2',
+    'title': 'RKE2',
+    'url': 'https://documentation.suse.com/cloudnative/rke2',
+    'fullTitle': 'SUSE Rancher Prime: RKE2'
+  },
+  {
+    'url-part': 'suse-observability',
+    'title': 'SUSE Observability',
+    'url': 'https://documentation.suse.com/cloudnative/suse-observability',
+  },
+  {
+    'url-part': 'rancher-manager',
+    'title': 'SUSE Rancher Manager',
+    'url': 'https://documentation.suse.com/cloudnative/rancher-manager',
+  },
+  {
+    'url-part': 'rancher-srfa',
+    'title': 'SUSE Rancher for AWS',
+    'url': 'https://documentation.suse.com/cloudnative/rancher-srfa',
+  },
+  {
+    'url-part': 'security',
+    'title': 'SUSE Security',
+    'url': 'https://documentation.suse.com/cloudnative/security',
+  },
+  {
+    'url-part': 'storage',
+    'title': 'SUSE Storage',
+    'url': 'https://documentation.suse.com/cloudnative/storage',
+  },
+  {
+    'url-part': 'virtualization',
+    'title': 'SUSE Virtualization',
+    'url': 'https://documentation.suse.com/cloudnative/virtualization',
+  },
+  {
+    'url-part': 'virtual-clusters',
+    'title': 'SUSE Virtual Clusters',
+    'url': 'https://documentation.suse.com/cloudnative/virtual-clusters',
+  },
 ]
