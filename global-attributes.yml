@@ -22,6 +22,7 @@ turtles-product-name: "SUSE® Rancher Prime: Cluster API"
 
 # shared header and JSON-LD data
 # fullTitle can be added where needed/required.
+page-rancher-author: "SUSE Product & Solution Documentation Team"
 page-project-data: [
   {
     'url-part': 'cluster-api',
