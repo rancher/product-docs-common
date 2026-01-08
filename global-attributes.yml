@@ -91,8 +91,8 @@ page-project-data: [
     'url': 'https://documentation.suse.com/cloudnative/virtualization',
   },
   {
-    'url-part': 'virtual-clusters',
+    'url-part': 'suse-virtual-clusters',
     'title': 'SUSE Virtual Clusters',
-    'url': 'https://documentation.suse.com/cloudnative/virtual-clusters',
+    'url': 'https://documentation.suse.com/cloudnative/suse-virtual-clusters',
   },
 ]
