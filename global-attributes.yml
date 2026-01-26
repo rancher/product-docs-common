@@ -96,4 +96,9 @@ page-project-data: [
     'title': 'SUSE Virtual Clusters',
     'url': 'https://documentation.suse.com/cloudnative/suse-virtual-clusters',
   },
+  {
+    'url-part': 'rancher-ai',
+    'title': 'Liz: The Rancher AI Assistant',
+    'url': 'https://documentation.suse.com/cloudnative/rancher-ai',
+  },
 ]
