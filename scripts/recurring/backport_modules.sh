@@ -7,13 +7,10 @@
 # Note: It does not properly handle moved, renamed or removed files.
 #
 # Usage:
-#   ./backport_modules.sh              (syncs from 'latest' to all found versions)
-#   ./backport_modules.sh v2.11 v2.12    (syncs from 'latest' to only v2.11 and v2.12)
+#   ./backport_modules.sh              (syncs from detected source version to all found versions)
+#   ./backport_modules.sh v2.11 v2.12    (syncs from detected source version to only v2.11 and v2.12)
 #   ./backport_modules.sh --from next  (syncs from 'next' to all found versions)
 #   ./backport_modules.sh --help       (shows this help message)
-
-# The Antora playbook file to read versions from.
-PLAYBOOK_FILE="playbook-remote.yml"
 
 # --- Color Definitions ---
 COLOR_GREEN='\033[0;32m'
@@ -41,7 +38,7 @@ show_usage() {
   echo "  (e.g., versions/latest/modules/) and either copies them (for new files) or"
   echo "  applies a patch (for existing files) to the corresponding target version directories."
   echo ""
-  echo "  Target versions are automatically detected from '$PLAYBOOK_FILE' (if it exists)."
+  echo "  Source and target versions are automatically detected from the 'versions' or 'docs' directory."
   echo "  If specific target version numbers are provided as arguments, the script will"
   echo "  only sync to those."
   echo ""
@@ -49,13 +46,13 @@ show_usage() {
   echo ""
   echo "Options:"
   echo "  -h, --help           Show this help message and exit."
-  echo "  -f, --from VERSION   Specify the source version name (default: 'latest')."
+  echo "  -f, --from VERSION   Specify the source version name (autodetected if not specified)."
   echo ""
   echo "Examples:"
-  echo "  # Sync from 'latest' to all default target versions"
+  echo "  # Sync from detected source version to all default target versions"
   echo "  $(basename "$0")"
   echo ""
-  echo "  # Sync from 'latest' only to specific versions"
+  echo "  # Sync from detected source version only to specific versions"
   echo "  $(basename "$0") v2.11 v2.12"
   echo ""
   echo "  # Sync from 'next' to all default target versions"
@@ -64,7 +61,7 @@ show_usage() {
 
 
 # --- Argument Parsing ---
-SOURCE_VERSION_NAME="latest" # Default value
+SOURCE_VERSION_NAME="" # Default value (empty means autodetect)
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -104,57 +101,62 @@ if [ ! -d .git ]; then
 fi
 
 # --- Dynamic Version Detection ---
-DEFAULT_TARGET_VERSIONS=()
-
-# First, try to find versions from the playbook file.
-if [ -f "$PLAYBOOK_FILE" ]; then
-  print_message "Playbook file found. Detecting versions from '$PLAYBOOK_FILE'..."
-
-  # Read the start_paths line, ensuring it's not commented out.
-  paths_str=$(grep -v '^ *#' "$PLAYBOOK_FILE" | grep '^ *start_paths:' | sed -n 's/.*\[\(.*\)\].*/\1/p')
-  IFS=',' read -r -a all_paths <<< "$paths_str"
-
-  for path in "${all_paths[@]}"; do
-    path=$(echo "$path" | xargs) # Trim whitespace
-    if [[ "$path" == "versions/v"* ]]; then
-      version=$(basename "$path")
-      DEFAULT_TARGET_VERSIONS+=("$version")
-    fi
-  done
-
-  # The source path, constructed from the (potentially overridden) source version name.
-  SOURCE_PATH="versions/${SOURCE_VERSION_NAME}/modules/"
-
+VERSIONS_DIR_BASE=""
+if [ -d "versions" ]; then
+  VERSIONS_DIR_BASE="versions"
+elif [ -d "docs" ]; then
+  VERSIONS_DIR_BASE="docs"
 else
-  # If playbook not found, fallback to scanning directories.
-  print_message "Playbook file not found. Detecting versions from directory structure..."
-  VERSIONS_DIR_BASE=""
-  if [ -d "versions" ]; then
-    VERSIONS_DIR_BASE="versions"
-  elif [ -d "docs" ]; then
-    VERSIONS_DIR_BASE="docs"
-  else
-    print_error "Could not find '$PLAYBOOK_FILE', or a 'versions'/'docs' directory."
+  print_error "Could not find a 'versions' or 'docs' directory."
+  exit 1
+fi
+
+# Detect Source Version if not specified
+if [ -z "$SOURCE_VERSION_NAME" ]; then
+  print_message "Attempting to detect source version from staged files..."
+  
+  # Get all staged files
+  staged_files_all=$(git diff --name-only --cached)
+  
+  if [ -z "$staged_files_all" ]; then
+    print_error "No staged files found. Cannot detect source version."
     exit 1
   fi
 
-  print_message "Scanning subdirectories in '$VERSIONS_DIR_BASE'..."
-  for dir in "$VERSIONS_DIR_BASE"/*; do
-    if [ -d "$dir" ]; then
-      version_name=$(basename "$dir")
-      # Filter out the source version and apply other conditions
-      if [[ "$version_name" != "$SOURCE_VERSION_NAME" ]]; then
-        if [[ "$version_name" == "v"* ]] || [[ "$version_name" =~ ^[0-9]+(\.[0-9]+)*$ ]] || [[ "$version_name" == "next" ]] || [[ "$version_name" == "latest" ]]; then
-          DEFAULT_TARGET_VERSIONS+=("$version_name")
-        fi
+  # Extract unique versions from paths starting with VERSIONS_DIR_BASE
+  detected_versions=$(echo "$staged_files_all" | grep "^$VERSIONS_DIR_BASE/" | cut -d/ -f2 | sort -u)
+  
+  # Count how many versions were found
+  version_count=$(echo "$detected_versions" | grep -cve '^\s*$')
+
+  if [ "$version_count" -eq 0 ]; then
+    print_error "No staged files found inside '$VERSIONS_DIR_BASE/'. Cannot detect source version."
+    exit 1
+  elif [ "$version_count" -gt 1 ]; then
+    print_error "Multiple source versions detected in staged files: $(echo $detected_versions | tr '\n' ' '). Please specify source version manually using --from."
+    exit 1
+  else
+    SOURCE_VERSION_NAME=$(echo "$detected_versions" | tr -d '[:space:]')
+    print_message "Detected source version: $SOURCE_VERSION_NAME"
+  fi
+fi
+
+DEFAULT_TARGET_VERSIONS=()
+print_message "Scanning subdirectories in '$VERSIONS_DIR_BASE'..."
+for dir in "$VERSIONS_DIR_BASE"/*; do
+  if [ -d "$dir" ]; then
+    version_name=$(basename "$dir")
+    # Filter out the source version and apply other conditions
+    if [[ "$version_name" != "$SOURCE_VERSION_NAME" ]]; then
+      if [[ "$version_name" == "v"* ]] || [[ "$version_name" =~ ^[0-9]+(\.[0-9]+)*$ ]] || [[ "$version_name" == "next" ]] || [[ "$version_name" == "latest" ]]; then
+        DEFAULT_TARGET_VERSIONS+=("$version_name")
       fi
     fi
-  done
+  fi
+done
 
-  # Update the source path with detected directories.
-  SOURCE_PATH="${VERSIONS_DIR_BASE}/${SOURCE_VERSION_NAME}/modules/"
-
-fi
+# Update the source path with detected directories.
+SOURCE_PATH="${VERSIONS_DIR_BASE}/${SOURCE_VERSION_NAME}/modules/"
 
 if [ ${#DEFAULT_TARGET_VERSIONS[@]} -eq 0 ]; then
     print_error "No valid default target versions could be found."
@@ -225,12 +227,12 @@ while IFS= read -r file; do
         # Create a temporary file for the diff
         patch_file=$(mktemp)
 
-        # Generate the patch by comparing the target (old) to the source (new)
-        diff -u "$dest_file" "$file" > "$patch_file"
+        # Generate the patch from the staged changes only
+        git diff --no-color --cached -- "$file" > "$patch_file"
 
         # Check if the patch file has content (i.e., if there are differences)
         if [ -s "$patch_file" ]; then
-          if patch --quiet "$dest_file" < "$patch_file"; then
+          if patch --quiet --no-backup-if-mismatch "$dest_file" < "$patch_file"; then
             echo -e "  - ${COLOR_GREEN}SUCCESS: Patch applied.${COLOR_NC}"
           else
             echo -e "  - ${COLOR_RED}FAILED: Patch could not be applied. Manual merge required.${COLOR_NC}"
@@ -263,4 +265,3 @@ done <<< "$staged_files"
 echo "-----------------------------------------------------"
 echo -e "=> ${COLOR_GREEN}Sync complete!${COLOR_NC}"
 print_message "Note: The files are copied/patched but not staged for commit. Please review and 'git add' them manually."
-
