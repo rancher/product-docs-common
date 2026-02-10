@@ -1,16 +1,17 @@
 #!/bin/bash
-# A script to copy or patch staged files from a source version
+# A script to copy or patch modified files from a source version
 # directory to other specified version directories.
 #
 # If a target file exists, it will be patched. If it's new, it will be copied.
 #
-# Note: It does not properly handle moved, renamed or removed files.
+# Note: It does not handle moved, renamed or removed files.
 #
 # Usage:
 #   ./backport_modules.sh              (syncs from detected source version to all found versions)
 #   ./backport_modules.sh v2.11 v2.12    (syncs from detected source version to only v2.11 and v2.12)
 #   ./backport_modules.sh --from next  (syncs from 'next' to all found versions)
 #   ./backport_modules.sh --help       (shows this help message)
+#   ./backport_modules.sh --staged     (syncs only staged files)
 
 # --- Color Definitions ---
 COLOR_GREEN='\033[0;32m'
@@ -35,12 +36,12 @@ is_valid_version() {
 
 # Function to display usage information
 show_usage() {
-  echo "A script to sync staged files from a source version to other versions."
+  echo "A script to sync modified files from a source version to other versions."
   echo ""
   echo "Usage: $(basename "$0") [options] [TARGET_VERSION...]"
   echo ""
   echo "Description:"
-  echo "  This script finds all files staged with 'git add' in the source version's path"
+  echo "  This script finds all modified files in the source version's path"
   echo "  (e.g., versions/latest/modules/) and either copies them (for new files) or"
   echo "  applies a patch (for existing files) to the corresponding target version directories."
   echo ""
@@ -53,6 +54,7 @@ show_usage() {
   echo "Options:"
   echo "  -h, --help           Show this help message and exit."
   echo "  -f, --from VERSION   Specify the source version name (autodetected if not specified)."
+  echo "  --staged             Only process files that are staged for commit."
   echo ""
   echo "Examples:"
   echo "  # Sync from detected source version to all default target versions"
@@ -68,6 +70,7 @@ show_usage() {
 
 # --- Argument Parsing ---
 SOURCE_VERSION_NAME="" # Default value (empty means autodetect)
+STAGED_ONLY=false
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -84,6 +87,10 @@ while [[ $# -gt 0 ]]; do
       SOURCE_VERSION_NAME="$2"
       shift # past argument
       shift # past value
+      ;;
+    --staged)
+      STAGED_ONLY=true
+      shift # past argument
       ;;
     -*) # Invalid option
       print_error "Invalid option '$1'"
@@ -119,13 +126,16 @@ fi
 
 # Detect Source Version if not specified
 if [ -z "$SOURCE_VERSION_NAME" ]; then
-  print_message "Attempting to detect source version from staged files..."
-  
-  # Get all staged files
-  staged_files_all=$(git diff --name-only --cached)
-  
+  if [ "$STAGED_ONLY" = true ]; then
+    print_message "Attempting to detect source version from staged files..."
+    staged_files_all=$(git diff --name-only --diff-filter=AM --cached)
+  else
+    print_message "Attempting to detect source version from modified files..."
+    staged_files_all=$(git diff --name-only --diff-filter=AM HEAD)
+  fi
+
   if [ -z "$staged_files_all" ]; then
-    print_error "No staged files found. Cannot detect source version."
+    print_error "No modified/staged files found. Cannot detect source version."
     exit 1
   fi
 
@@ -142,10 +152,10 @@ if [ -z "$SOURCE_VERSION_NAME" ]; then
   version_count=$(echo "$detected_versions" | grep -cve '^\s*$')
 
   if [ "$version_count" -eq 0 ]; then
-    print_error "No staged files found inside '$VERSIONS_DIR_BASE/'. Cannot detect source version."
+    print_error "No modified/staged files found inside '$VERSIONS_DIR_BASE/'. Cannot detect source version."
     exit 1
   elif [ "$version_count" -gt 1 ]; then
-    print_error "Multiple source versions detected in staged files: $(echo $detected_versions | tr '\n' ' '). Please specify source version manually using --from."
+    print_error "Multiple source versions detected in modified/staged files: $(echo $detected_versions | tr '\n' ' '). Please specify source version manually using --from."
     exit 1
   else
     SOURCE_VERSION_NAME=$(echo "$detected_versions" | tr -d '[:space:]')
@@ -205,15 +215,20 @@ else
   print_message "No versions specified, using dynamically detected default versions."
 fi
 
-print_message "Starting sync of staged files from '$SOURCE_VERSION_NAME'..."
+print_message "Starting sync of files from '$SOURCE_VERSION_NAME'..."
 print_message "Target versions: ${TARGET_VERSIONS[*]}"
 echo "-----------------------------------------------------"
 
-# Get a list of files staged for commit within the specified source path
-staged_files=$(git diff --name-only --cached -- "$SOURCE_PATH"**)
+if [ "$STAGED_ONLY" = true ]; then
+  # Get a list of files staged for commit within the specified source path
+  staged_files=$(git diff --name-only --diff-filter=AM --cached -- "$SOURCE_PATH"**)
+else
+  # Get a list of modified files (staged + unstaged) within the specified source path
+  staged_files=$(git diff --name-only --diff-filter=AM HEAD -- "$SOURCE_PATH"**)
+fi
 
 if [ -z "$staged_files" ]; then
-  print_message "No staged files found in '$SOURCE_PATH'. Nothing to do."
+  print_message "No modified files found in '$SOURCE_PATH'. Nothing to do."
   exit 0
 fi
 
@@ -239,8 +254,12 @@ while IFS= read -r file; do
         # Create a temporary file for the diff
         patch_file=$(mktemp)
 
-        # Generate the patch from the staged changes only
-        git diff --no-color --cached -- "$file" > "$patch_file"
+        # Generate the patch
+        if [ "$STAGED_ONLY" = true ]; then
+          git diff --no-color --cached -- "$file" > "$patch_file"
+        else
+          git diff --no-color HEAD -- "$file" > "$patch_file"
+        fi
 
         # Check if the patch file has content (i.e., if there are differences)
         if [ -s "$patch_file" ]; then
