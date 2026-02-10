@@ -27,6 +27,12 @@ print_error() {
   echo -e "${COLOR_RED}Error: $1${COLOR_NC}"
 }
 
+# Function to check if a version name is valid
+is_valid_version() {
+  local version_name="$1"
+  [[ "$version_name" == "v"* ]] || [[ "$version_name" =~ ^[0-9]+(\.[0-9]+)*$ ]] || [[ "$version_name" == "next" ]] || [[ "$version_name" == "latest" ]]
+}
+
 # Function to display usage information
 show_usage() {
   echo "A script to sync staged files from a source version to other versions."
@@ -125,6 +131,12 @@ if [ -z "$SOURCE_VERSION_NAME" ]; then
 
   # Extract unique versions from paths starting with VERSIONS_DIR_BASE
   detected_versions=$(echo "$staged_files_all" | grep "^$VERSIONS_DIR_BASE/" | cut -d/ -f2 | sort -u)
+  raw_versions=$(echo "$staged_files_all" | grep "^$VERSIONS_DIR_BASE/" | cut -d/ -f2 | sort -u)
+  detected_versions=$(for ver in $raw_versions; do
+    if is_valid_version "$ver"; then
+      echo "$ver"
+    fi
+  done)
   
   # Count how many versions were found
   version_count=$(echo "$detected_versions" | grep -cve '^\s*$')
@@ -148,7 +160,7 @@ for dir in "$VERSIONS_DIR_BASE"/*; do
     version_name=$(basename "$dir")
     # Filter out the source version and apply other conditions
     if [[ "$version_name" != "$SOURCE_VERSION_NAME" ]]; then
-      if [[ "$version_name" == "v"* ]] || [[ "$version_name" =~ ^[0-9]+(\.[0-9]+)*$ ]] || [[ "$version_name" == "next" ]] || [[ "$version_name" == "latest" ]]; then
+      if is_valid_version "$version_name"; then
         DEFAULT_TARGET_VERSIONS+=("$version_name")
       fi
     fi
