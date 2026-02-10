@@ -33,10 +33,28 @@ const componentVersions = [];
 let startPageVersionStr = null;
 let startPageComponentName = null;
 
+
 // Symlink and file names used for version pointers
 const LATEST_SYMLINK = "latest";
 const DEV_SYMLINK = "dev";
 const LATEST_DEV_FILE = "latest_dev.txt";
+
+// Utility: Get component output directory
+function getComponentDir(outputDir, componentName) {
+  return componentName === 'ROOT'
+    ? path.resolve(outputDir)
+    : path.resolve(outputDir, componentName);
+}
+
+// Utility: Get path to latest_dev.txt for a component
+function getLatestDevFilePath(outputDir, componentName) {
+  return path.join(getComponentDir(outputDir, componentName), LATEST_DEV_FILE);
+}
+
+// Utility: Get symlink/copy path for a component and link name
+function getSymlinkOrCopyPath(outputDir, componentName, linkName) {
+  return path.join(getComponentDir(outputDir, componentName), linkName);
+}
 
 // Print debug messages if enabled, using dynamic filename label.
 const debugLabel = `[${require("node:path").basename(__filename)}]`;
@@ -55,22 +73,21 @@ function dprint(...args) {
 
 function createSymlinkOrCopy(targetPath, symlinkOrCopyPath, buildEnvironment) {
   if (fs.existsSync(symlinkOrCopyPath)) {
-    if (!fs.lstatSync(symlinkOrCopyPath).isDirectory()) {
-      fs.unlinkSync(symlinkOrCopyPath);
-    } else {
+    if (fs.lstatSync(symlinkOrCopyPath).isDirectory()) {
       // If it's a directory, do not touch it
       dprint("Not writing", symlinkOrCopyPath, "because it is a directory");
       return;
     }
+    fs.unlinkSync(symlinkOrCopyPath);
   }
   if (buildEnvironment === "netlify") {
     dprint("Build environment is Netlify, performing recursive copy.");
     const srcPath = path.resolve(path.dirname(symlinkOrCopyPath), targetPath);
     fs.cpSync(srcPath, symlinkOrCopyPath, { recursive: true });
-  } else {
-    dprint("Standard build environment, creating symlink.");
-    fs.symlinkSync(targetPath, symlinkOrCopyPath);
+    return;
   }
+  dprint("Standard build environment, creating symlink.");
+  fs.symlinkSync(targetPath, symlinkOrCopyPath);
 }
 
 /**
@@ -170,6 +187,7 @@ function writeLatestDevFile(dir, content) {
     fs.writeFileSync(path.join(dir, LATEST_DEV_FILE), content, "utf8");
   } catch (err) {
     console.error(`Failed to write ${LATEST_DEV_FILE} in ${dir}:`, err);
+    return;
   }
 }
 
@@ -225,6 +243,8 @@ module.exports.register = function () {
         }))
         .filter((v) => v.semver);
 
+      if (!parsedVersions.length) return;
+
       // Sort versions in descending order (latest first)
       parsedVersions.sort((a, b) => semver.rcompare(a.semver, b.semver));
 
@@ -244,7 +264,7 @@ module.exports.register = function () {
       });
 
       // Write latest_dev.txt file with latest version info
-      const dirName = path.resolve(outputDir, component.name);
+      const dirName = getComponentDir(outputDir, component.name);
       let fileContent = `${component.name}\n`;
       if (latestStableObj)
         fileContent += `latest: ${latestStableObj.version}\n`;
@@ -265,11 +285,8 @@ module.exports.register = function () {
         const compName = file.component?.name || file.src?.component;
         const filename = file.src?.path;
 
-        // Skip files that are nav.adoc, in the shared component, or have no
-        // filename
-        if (!filename || basename === "nav.adoc" || compName === "shared") {
-          return;
-        }
+        // Early return for files that are nav.adoc, in the shared component, or have no filename
+        if (!filename || basename === "nav.adoc" || compName === "shared") return;
 
         dprint(`[PROCESSING FILE] Component: ${compName}, File: ${filename}`);
 
@@ -283,20 +300,20 @@ module.exports.register = function () {
 
         // Scan file for 'xref:latest@' or 'xref:dev@' and modify them
         const fileText = file.contents?.toString();
-        if (fileText) {
-          dprint(
-            `[SCANNING FILE] Scanning for xref:(latest|dev)@ in ` +
-              `component: ${compName}, file: ${file.src?.path}`,
-          );
-          const newFileText = modifyXrefsInText(
-            fileText,
-            file,
-            componentVersions,
-          );
-          file.contents = Buffer.from(newFileText);
-        }
+        if (!fileText) return;
+        dprint(
+          `[SCANNING FILE] Scanning for xref:(latest|dev)@ in ` +
+            `component: ${compName}, file: ${file.src?.path}`,
+        );
+        const newFileText = modifyXrefsInText(
+          fileText,
+          file,
+          componentVersions,
+        );
+        file.contents = Buffer.from(newFileText);
       } catch (err) {
         console.error(`[vlp.js] Error processing file: ${file.src?.path}`, err);
+        return;
       }
     });
   });
@@ -308,7 +325,14 @@ module.exports.register = function () {
     // Create symlinks for each component after site is published
     componentVersions.forEach(
       ({ componentName, latestStableObj, latestPrereleaseObj }) => {
-        const dirName = path.resolve(outputDir, componentName);
+        const dirName = getComponentDir(outputDir, componentName);
+        dprint(
+          "In sitePublished, processing component",
+          componentName,
+          "in directory",
+          dirName,
+          "for outputDir", outputDir
+        );
         // For both stable and prerelease, create symlinks if or copy
         // version exists
         [
@@ -326,7 +350,7 @@ module.exports.register = function () {
                 versionObj.version,
               );
               // Symlink points to the version directory
-              const symlinkOrCopyPath = path.join(dirName, linkName);
+              const symlinkOrCopyPath = getSymlinkOrCopyPath(outputDir, componentName, linkName);
               const targetPath = path.relative(
                 dirName,
                 path.join(dirName, versionObj.version),
@@ -353,33 +377,39 @@ module.exports.register = function () {
       dprint("Original index.html content:", indexContent);
       if (startPageComponentName && startPageVersionStr) {
         // Build the path to the 'latest' directory/symlink for the
-        // component
-        const latestPath = path.join(
-          outputDir,
-          startPageComponentName,
-          "latest",
-        );
+        // component. If startPageComponentName is 'ROOT',
+        // only use outputDir and 'latest'.
+        const latestPath = startPageComponentName === 'ROOT'
+          ? path.join(outputDir, 'latest')
+          : path.join(outputDir, startPageComponentName, 'latest');
         dprint("Checking for existence of", latestPath);
         // Proceed only if 'latest' exists
         if (fs.existsSync(latestPath)) {
-          dprint(
-            `Updating index.html: ` +
-              `Replacing /${startPageComponentName}/${startPageVersionStr}/ ` +
-              `with /${startPageComponentName}/latest/`,
-          );
-          // Build a regex to match URLs containing the version
-          // for this component
-          // and replace with 'latest'.
           // Backup index.html before modifying
           const backupPath = path.join(outputDir, "index.html.bkp");
           fs.copyFileSync(indexPath, backupPath);
           dprint(`Backed up index.html to ${backupPath}`);
-          const versionPattern = new RegExp(
-            `(${startPageComponentName})/${startPageVersionStr}(/|\b)`,
-            "g",
-          );
-          // Perform the replacement in index.html content
-          indexContent = indexContent.replace(versionPattern, "$1/latest$2");
+          if (startPageComponentName === 'ROOT') {
+            dprint(
+              `Updating index.html: Replacing occurrences of ${startPageVersionStr}/ with latest/ (ROOT case)`
+            );
+            // Replace all occurrences of the version string followed by a slash, after =, ", >, or whitespace
+            const versionPattern = new RegExp(`([=\"'\s>])${startPageVersionStr}/`, "g");
+            indexContent = indexContent.replace(versionPattern, `$1latest/`);
+          } else {
+            dprint(
+              `Updating index.html: ` +
+                `Replacing /${startPageComponentName}/${startPageVersionStr}/ ` +
+                `with /${startPageComponentName}/latest/`,
+            );
+            // Build a regex to match URLs containing the version for this component and replace with 'latest'.
+            const versionPattern = new RegExp(
+              `(${startPageComponentName})/${startPageVersionStr}(/|\\b)`,
+              "g",
+            );
+            // Perform the replacement in index.html content
+            indexContent = indexContent.replace(versionPattern, "$1/latest$2");
+          }
         } else {
           // If 'latest' does not exist, skip the replacement
           dprint(`Skipping index.html update: '${latestPath}' does not exist.`);
