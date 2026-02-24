@@ -23,6 +23,7 @@
 const semver = require("semver");
 const path = require("node:path");
 const fs = require("node:fs");
+const yaml = require('js-yaml');
 
 // Enable debug output if VLP_DEBUG environment variable is set
 const debug = process.env.VLP_DEBUG === "true";
@@ -278,6 +279,17 @@ module.exports.register = function () {
       writeLatestDevFile(dirName, fileContent);
     });
 
+    // Read and parse global-attributes.yml once
+    let languageData = [];
+    try {
+      const globalAttrPath = path.resolve(__dirname, '../../global-attributes.yml');
+      const globalAttrContent = fs.readFileSync(globalAttrPath, 'utf8');
+      const globalAttrYaml = yaml.load(globalAttrContent);
+      languageData = globalAttrYaml['language-data'] || [];
+    } catch (err) {
+      console.error('[vlp.js] Error reading/parsing global-attributes.yml:', err);
+    }
+
     contentCatalog.findBy({ mediaType: "text/asciidoc" }).forEach((file) => {
       dprint("Entered contentClassified file processing loop");
       try {
@@ -298,9 +310,29 @@ module.exports.register = function () {
           );
         }
 
-        // Scan file for 'xref:latest@' or 'xref:dev@' and modify them
-        const fileText = file.contents?.toString();
+        let fileText = file.contents?.toString();
         if (!fileText) return;
+
+        // Example: docs/some/component/fr/filename.adoc => ['module','fr','filename.adoc']
+        const relPathParts = filename.split(path.sep);
+        dprint(`[LANG-INJECT] relPathParts for ${filename}:`, relPathParts);
+        if (relPathParts[1] && relPathParts[1] !== 'en') {
+          // Inject :page-lang-<lang>: true for non-English languages
+          const lang = relPathParts[1];
+          let injectLines = [`:page-lang_${lang}: true`];
+          // languageData is an array of objects like [{ fr: [':caution-caption: Attention', ...] }]
+          for (const langObj of languageData) {
+            const attrs = langObj[lang];
+            if (Array.isArray(attrs)) {
+              dprint(`[LANG-INJECT] Adding attributes for ${lang} to file: ${filename}`);
+              injectLines = injectLines.concat(attrs);
+              break;
+            }
+          }
+          dprint(`[INJECT] Injecting lines into ${filename}:\n${injectLines.join('\n')}`);
+          fileText = injectLines.join('\n') + '\n' + fileText;
+        }
+
         dprint(
           `[SCANNING FILE] Scanning for xref:(latest|dev)@ in ` +
             `component: ${compName}, file: ${file.src?.path}`,

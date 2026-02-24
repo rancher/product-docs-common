@@ -102,3 +102,40 @@ page-project-data: [
     'url': 'https://documentation.suse.com/cloudnative/rancher-ai',
   },
 ]
+
+language-data:
+  - fr:
+      - ':warning-caption: Avertissement'
+      - ':caution-caption: Attention'
+      - ':tip-caption: Astuce'
+  - de:
+      - ':caution-caption: Achtung'
+      - ':warning-caption: Warnung'
+      - ':important-caption: Wichtig'
+      - ':tip-caption: Tipp'
+      - ':note-caption: Anmerkung'
+  - es-es:
+      - ':caution-caption: Atención'
+      - ':warning-caption: Aviso'
+      - ':important-caption: Importante'
+      - ':tip-caption: Sugerencia'
+      - ':note-caption: Nota'
+  - pt-br:
+      - ':caution-caption: Cuidado'
+      - ':warning-caption: Atenção'
+      - ':important-caption: Importante'
+      - ':tip-caption: Dica'
+      - ':note-caption: Nota'
+  - ja:
+      - ':caution-caption: 注意'
+      - ':warning-caption: 警告'
+      - ':important-caption: 重要'
+      - ':tip-caption: ヒント'
+      - ':note-caption: 注記'
+  - zh-cn:
+      - ':caution-caption: 小心'
+      - ':warning-caption: 警告'
+      - ':important-caption: 重要'
+      - ':tip-caption: 提示'
+      - ':note-caption: 注意'
+
