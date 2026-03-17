@@ -316,8 +316,8 @@ module.exports.register = function () {
         // Example: docs/some/component/fr/filename.adoc => ['module','fr','filename.adoc']
         const relPathParts = filename.split(path.sep);
         dprint(`[LANG-INJECT] relPathParts for ${filename}:`, relPathParts);
-        if (relPathParts[1] && relPathParts[1] !== 'en') {
-          // Inject :page-lang-<lang>: true for non-English languages
+        if (relPathParts[1]) {
+          // Inject :page-lang-<lang>: true for all languages, including 'en'
           const lang = relPathParts[1];
           let injectLines = [`:page-lang_${lang}: true`];
           // languageData is an array of objects like [{ fr: [':caution-caption: Attention', ...] }]
