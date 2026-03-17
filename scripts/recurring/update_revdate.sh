@@ -77,10 +77,10 @@ fi
 # Collect target files
 if $staged_only; then
   echo -e "${BLUE} Updating staged .adoc files only...${RESET}"
-  mapfile -t files < <(git diff --cached --name-only --diff-filter=ACM | grep '\.adoc$' || true)
+  mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR | grep '\.adoc$' || true)
 else
   echo -e "${BLUE} Updating modified and untracked .adoc files...${RESET}"
-  mapfile -t modified < <(git ls-files --modified | grep '\.adoc$' || true)
+  mapfile -t modified < <(git diff --name-only --diff-filter=ACMR HEAD | grep '\.adoc$' || true)
   mapfile -t untracked < <(git ls-files --others --exclude-standard | grep '\.adoc$' || true)
   files=("${modified[@]}" "${untracked[@]}")
 fi
