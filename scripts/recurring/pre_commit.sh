@@ -31,7 +31,7 @@ CURRENT_DATE=$(date +%Y-%m-%d)
 echo "Checking for :revdate: $CURRENT_DATE in .adoc files..."
 
 # Find all staged .adoc files.
-STAGED_ADOC_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.adoc$')
+STAGED_ADOC_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.adoc$')
 
 # Array to hold files that need updating.
 FILES_TO_FIX=()
