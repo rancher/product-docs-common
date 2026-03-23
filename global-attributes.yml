@@ -114,13 +114,13 @@ language-data:
       - ':important-caption: Wichtig'
       - ':tip-caption: Tipp'
       - ':note-caption: Anmerkung'
-  - es-es:
+  - es:
       - ':caution-caption: Atención'
       - ':warning-caption: Aviso'
       - ':important-caption: Importante'
       - ':tip-caption: Sugerencia'
       - ':note-caption: Nota'
-  - pt-br:
+  - pt:
       - ':caution-caption: Cuidado'
       - ':warning-caption: Atenção'
       - ':important-caption: Importante'
@@ -132,10 +132,9 @@ language-data:
       - ':important-caption: 重要'
       - ':tip-caption: ヒント'
       - ':note-caption: 注記'
-  - zh-cn:
+  - zh:
       - ':caution-caption: 小心'
       - ':warning-caption: 警告'
       - ':important-caption: 重要'
       - ':tip-caption: 提示'
       - ':note-caption: 注意'
-
