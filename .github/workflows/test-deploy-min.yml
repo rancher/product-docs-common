@@ -18,13 +18,13 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           submodules: recursive
 
       - name: Checkout helper scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: rancher/product-docs-common
           ref: main
@@ -33,12 +33,12 @@ jobs:
           sparse-checkout-cone-mode: false
           path: helpers
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
       - name: Check revdate
-        uses: rancher/product-docs-common/.github/actions/check-revdate-composite-action@main
+        uses: rancher/product-docs-common/.github/actions/check-revdate-composite-action@e37ee6abff600fe8b90fa8d6ad41ec23d9c4b90c # main
         with:
           token: ${{ secrets.token }}
 
