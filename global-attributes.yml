@@ -9,7 +9,8 @@ k3s-product-name: "SUSE® Rancher Prime: K3s"
 kubewarden-product-name: "SUSE Security Admission Controller"
 longhorn-product-name: "SUSE Storage"
 longhorn-product-name-tm: "SUSE® Storage"
-neuvector-product-name: "SUSE® Security"
+neuvector-product-name: "SUSE Security"
+neuvector-product-name-tm: "SUSE® Security"
 # Rancher attributes are soft set (@) so that they can be changed for SRFA
 rancher-prime: Cloud Native@
 rancher-product-name: SUSE Rancher Prime@
