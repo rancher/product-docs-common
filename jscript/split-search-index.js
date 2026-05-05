@@ -157,6 +157,44 @@ function buildComponentVersionAliases(componentVersions) {
   );
 }
 
+function buildIndexedVersionsByComponent(groups) {
+  return Object.fromEntries(
+    Object.entries(groups).map(([component, versions]) => [component, new Set(Object.keys(versions))])
+  );
+}
+
+function getComponentVersionsByName(componentVersions) {
+  const versionsByComponent = {};
+
+  for (const componentVersion of Object.values(componentVersions || {})) {
+    if (!componentVersion || typeof componentVersion !== 'object') continue;
+
+    const component = componentVersion.name;
+    const version = componentVersion.version;
+
+    if (!component || !version) continue;
+
+    if (!versionsByComponent[component]) versionsByComponent[component] = [];
+    versionsByComponent[component].push({
+      version,
+      prerelease: componentVersion.prerelease,
+    });
+  }
+
+  return versionsByComponent;
+}
+
+function resolveAliasTargetVersion(component, targetVersion, componentVersionAliases, indexedVersionsByComponent) {
+  const indexedVersions = indexedVersionsByComponent[component] || new Set();
+  if (targetVersion && indexedVersions.has(targetVersion)) return targetVersion;
+
+  const aliases = componentVersionAliases[component] || {};
+  if (aliases[DEV_ALIAS] && indexedVersions.has(aliases[DEV_ALIAS])) return aliases[DEV_ALIAS];
+  if (aliases[LATEST_ALIAS] && indexedVersions.has(aliases[LATEST_ALIAS])) return aliases[LATEST_ALIAS];
+
+  return [...indexedVersions][0];
+}
+
 function createVersionAlias(componentDir, aliasName, targetVersion) {
   if (!targetVersion || targetVersion === aliasName) return;
 
@@ -178,14 +216,43 @@ function createVersionAlias(componentDir, aliasName, targetVersion) {
   console.log(`Linked ${path.basename(componentDir)}/${aliasName} -> ${targetVersion}`);
 }
 
+function createMissingVersionAliases(outputDir, componentVersionsByName, componentVersionAliases, indexedVersionsByComponent) {
+  for (const [component, versions] of Object.entries(componentVersionsByName)) {
+    const componentDir = path.join(outputDir, component);
+    const indexedVersions = indexedVersionsByComponent[component] || new Set();
+
+    for (const { version } of versions) {
+      if (indexedVersions.has(version)) continue;
+
+      const resolvedTarget = resolveAliasTargetVersion(component, version, componentVersionAliases, indexedVersionsByComponent);
+      createVersionAlias(componentDir, version, resolvedTarget);
+    }
+  }
+}
+
 function createComponentVersionAliases(outputDir, groups, componentVersionAliases) {
+  const indexedVersionsByComponent = buildIndexedVersionsByComponent(groups);
+
   for (const component of Object.keys(groups)) {
     const aliases = componentVersionAliases[component];
     if (!aliases) continue;
 
     const componentDir = path.join(outputDir, component);
-    createVersionAlias(componentDir, LATEST_ALIAS, aliases[LATEST_ALIAS]);
-    createVersionAlias(componentDir, DEV_ALIAS, aliases[DEV_ALIAS]);
+    const latestTarget = resolveAliasTargetVersion(
+      component,
+      aliases[LATEST_ALIAS],
+      componentVersionAliases,
+      indexedVersionsByComponent
+    );
+    const devTarget = resolveAliasTargetVersion(
+      component,
+      aliases[DEV_ALIAS],
+      componentVersionAliases,
+      indexedVersionsByComponent
+    );
+
+    createVersionAlias(componentDir, LATEST_ALIAS, latestTarget);
+    createVersionAlias(componentDir, DEV_ALIAS, devTarget);
   }
 }
 
@@ -246,7 +313,8 @@ function main() {
     const allDocs = store.documents || {};
 
     const groups = buildOutputGroups(allDocs);
-  const componentVersionAliases = buildComponentVersionAliases(store.componentVersions || {});
+    const componentVersionAliases = buildComponentVersionAliases(store.componentVersions || {});
+    const componentVersionsByName = getComponentVersionsByName(store.componentVersions || {});
 
     fs.rmSync(outputDir, { recursive: true, force: true });
     fs.mkdirSync(outputDir, { recursive: true });
@@ -287,6 +355,12 @@ function main() {
       }
     }
 
+    createMissingVersionAliases(
+      outputDir,
+      componentVersionsByName,
+      componentVersionAliases,
+      buildIndexedVersionsByComponent(groups)
+    );
     createComponentVersionAliases(outputDir, groups, componentVersionAliases);
 
     // Keep the HTML <script src=".../search-index.js"> references unchanged.
