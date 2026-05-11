@@ -297,8 +297,8 @@ module.exports.register = function () {
         const compName = file.component?.name || file.src?.component;
         const filename = file.src?.path;
 
-        // Early return for files that are nav.adoc, in the shared component, or have no filename
-        if (!filename || basename === "nav.adoc" || compName === "shared") return;
+        // Early return for files in the shared component, or have no filename
+        if (!filename || compName === "shared") return;
 
         dprint(`[PROCESSING FILE] Component: ${compName}, File: ${filename}`);
 
