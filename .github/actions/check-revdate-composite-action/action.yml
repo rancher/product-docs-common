@@ -12,7 +12,8 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
       run: |
-        result=$(helpers/scripts/recurring/check_revdate ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+        ancestor=$(git merge-base main ${{ github.head_ref }})
+        result=$(helpers/scripts/recurring/check_revdate $ancestor ${{ github.event.pull_request.head.sha }})
         if [[ -n "$result" ]]; then
           mkdir comment-artifact
           echo "As of ${{ github.event.pull_request.head.sha }}, the following files have been modified without a corresponding update to the \`revdate\` page attribute. If this is intentional, please ignore this message. 
