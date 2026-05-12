@@ -24,7 +24,7 @@ jobs:
           submodules: recursive
 
       - name: Checkout helper scripts
-        uses: actions/checkout@bef76c9aab79980088a221e72e006acd3bfd8257 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: rancher/product-docs-common
           ref: main
