@@ -24,7 +24,7 @@ jobs:
           submodules: recursive
 
       - name: Checkout helper scripts
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@bef76c9aab79980088a221e72e006acd3bfd8257 # v4
         with:
           repository: rancher/product-docs-common
           ref: main
@@ -38,7 +38,7 @@ jobs:
           node-version: 22
 
       - name: Check revdate
-        uses: rancher/product-docs-common/.github/actions/check-revdate-composite-action@e37ee6abff600fe8b90fa8d6ad41ec23d9c4b90c # main
+        uses: rancher/product-docs-common/.github/actions/check-revdate-composite-action@bef76c9aab79980088a221e72e006acd3bfd8257 # main
         with:
           token: ${{ secrets.token }}
 
