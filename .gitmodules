@@ -1,0 +1,3 @@
+[submodule "ai-prompts"]
+	path = ai-prompts
+	url = git@github.com:openSUSE/doc-ai-prompts.git
