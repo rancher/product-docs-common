@@ -18,6 +18,8 @@ rancher-product-name-tm: SUSE® Rancher Prime@
 rancher-short-name: Rancher@
 rke2-product-name: "SUSE® Rancher Prime: RKE2"
 rke2-short-name: "RKE2"
+sbomscanner-product-name: "SUSE Security Vulnerability Scanner"
+sbomscanner-short-name: "Vulnerability Scanner"
 stackstate-product-name: "SUSE® Observability"
 turtles-product-name: "SUSE® Rancher Prime: Cluster API"
 
@@ -101,6 +103,11 @@ page-project-data: [
     'url-part': 'rancher-ai',
     'title': 'Liz: The Rancher AI Assistant',
     'url': 'https://documentation.suse.com/cloudnative/rancher-ai',
+  },
+  {
+    'url-part': 'vulnerability-scanner',
+    'title': 'SUSE Security Vulnerability Scanner',
+    'url': 'https://documentation.suse.com/cloudnative/vulnerability-scanner',
   },
 ]
 
