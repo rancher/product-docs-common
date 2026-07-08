@@ -1,0 +1,40 @@
+{
+  "product-only": [
+    "https://documentation.suse.com/cloudnative/admission-controller/",
+    "https://documentation.suse.com/cloudnative/continuous-delivery/",
+    "https://documentation.suse.com/cloudnative/cluster-api/",
+    "https://documentation.suse.com/cloudnative/k3s/",
+    "https://documentation.suse.com/cloudnative/os-manager/",
+    "https://documentation.suse.com/cloudnative/rancher-ai/",
+    "https://documentation.suse.com/cloudnative/rancher-developer-access/",
+    "https://documentation.suse.com/cloudnative/rancher-manager/",
+    "https://documentation.suse.com/cloudnative/rancher-srfa/",
+    "https://documentation.suse.com/cloudnative/rke2/",
+    "https://documentation.suse.com/cloudnative/security/",
+    "https://documentation.suse.com/cloudnative/storage/",
+    "https://documentation.suse.com/cloudnative/suse-observability/",
+    "https://documentation.suse.com/cloudnative/suse-private-registry/",
+    "https://documentation.suse.com/cloudnative/suse-virtual-clusters/",
+    "https://documentation.suse.com/cloudnative/virtualization/",
+    "https://documentation.suse.com/cloudnative/vulnerability-scanner/"
+  ],
+  "community-only": [
+    "https://elemental.docs.rancher.com",
+    "https://fleet.rancher.io",
+    "https://docs.harvesterhci.io",
+    "https://docs.k3s.io",
+    "https://docs.kubewarden.io",
+    "https://longhorn.io/docs",
+    "https://open-docs.neuvector.com",
+    "https://ranchermanager.docs.rancher.com",
+    "https://docs.rke2.io",
+    "https://turtles.docs.rancher.com"
+  ],
+  "both": [
+    "https://harvesterhci.io/kb",
+    "https://longhorn.io/kb/"
+  ],
+  "deprecated": [
+    "https://docs.stackstate.com"
+  ]
+}
