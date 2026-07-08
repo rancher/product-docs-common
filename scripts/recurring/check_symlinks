@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# 
+# Checks for broken symlinks in a given directory. If a directory is not
+# provided, it defaults to the current directory.
+#
+# $1 is a directory to check for broken symlinks.
+# 
+# So, for example, invoke as
+# 
+# scripts/recurring/check_symlinks
+#
+# scripts/recurring/check_symlinks <directory>
+#
+
+TARGET_DIR="${1:-.}"
+
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: '$TARGET_DIR' is not a valid directory." >&2
+    exit 2
+fi
+
+echo "Searching for broken symlinks in: $TARGET_DIR"
+echo "---------------------------------------------------"
+
+# Create a temporary file to store the count
+tmp_file=$(mktemp)
+echo 0 > "$tmp_file"
+
+# POSIX compliant find and loop
+find "$TARGET_DIR" -xtype l 2>/dev/null | while read -r symlink; do
+    if [ -n "$symlink" ]; then
+        target=$(readlink "$symlink")
+        echo "Broken: '$symlink' -> (Points to non-existent: '$target')"
+        
+        # Increment the counter inside the file
+        count=$(cat "$tmp_file")
+        echo $((count + 1)) > "$tmp_file"
+    fi
+done
+
+# Read the final count back
+broken_count=$(cat "$tmp_file")
+rm -f "$tmp_file" # Clean up temp file
+
+echo "---------------------------------------------------"
+
+if [ "$broken_count" -gt 0 ]; then
+    echo "Error: Found $broken_count broken symbolic link(s)!" >&2
+    exit 1
+else
+    echo "Success: No broken symlinks found."
+    exit 0
+fi
