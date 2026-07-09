@@ -18,6 +18,7 @@
     "https://documentation.suse.com/cloudnative/virtualization/",
     "https://documentation.suse.com/cloudnative/vulnerability-scanner/",
     "https://documentation.suse.com/cloudnative/runtime-enforcer/",
+    "https://scc.suse.com/rancher-docs"
   ],
   "community-only": [
     "https://elemental.docs.rancher.com",
