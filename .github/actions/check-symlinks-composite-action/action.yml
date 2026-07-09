@@ -1,0 +1,9 @@
+name: 'Check for broken symlinks'
+description: 'Checks for broken symlinks in the repository.'
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for broken symlinks
+      id: check-symlinks
+      run: ./helpers/scripts/recurring/check_symlinks
+      shell: bash      
