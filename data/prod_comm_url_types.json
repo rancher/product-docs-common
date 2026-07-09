@@ -16,14 +16,16 @@
     "https://documentation.suse.com/cloudnative/suse-private-registry/",
     "https://documentation.suse.com/cloudnative/suse-virtual-clusters/",
     "https://documentation.suse.com/cloudnative/virtualization/",
-    "https://documentation.suse.com/cloudnative/vulnerability-scanner/"
+    "https://documentation.suse.com/cloudnative/vulnerability-scanner/",
+    "https://documentation.suse.com/cloudnative/runtime-enforcer/",
   ],
   "community-only": [
     "https://elemental.docs.rancher.com",
     "https://fleet.rancher.io",
     "https://docs.harvesterhci.io",
     "https://docs.k3s.io",
-    "https://docs.kubewarden.io",
+    "https://docs.kubewarden.io/admission-controller",
+    "https://docs.kubewarden.io/sbom-scanner",
     "https://longhorn.io/docs",
     "https://open-docs.neuvector.com",
     "https://ranchermanager.docs.rancher.com",
