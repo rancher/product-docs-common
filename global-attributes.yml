@@ -27,87 +27,113 @@ turtles-product-name: "SUSE® Rancher Prime: Cluster API"
 # fullTitle can be added where needed/required.
 page-rancher-author: "SUSE Product & Solution Documentation Team"
 page-rancher-author-url: "https://documentation.suse.com"
+
+# project data for building
 page-project-data: [
+  # global anchor for the documentation base URL
+  page-global-dsc-base: &dsc_base "https://documentation.suse.com",
+
   {
     'url-part': 'cluster-api',
     'title': 'Cluster API',
-    'url': 'https://documentation.suse.com/cloudnative/cluster-api',
-    'fullTitle': 'SUSE Rancher Prime Cluster API'
+    'fullTitle': 'SUSE Rancher Prime Cluster API',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/cluster-api',
   },
   {
     'url-part': 'continuous-delivery',
     'title': 'Continuous Delivery',
-    'url': 'https://documentation.suse.com/cloudnative/continuous-delivery',
-    'fullTitle': 'SUSE Rancher Prime Continuous Delivery'
+    'fullTitle': 'SUSE Rancher Prime Continuous Delivery',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/continuous-delivery',
   },
   {
     'url-part': 'k3s',
     'title': 'K3s',
-    'url': 'https://documentation.suse.com/cloudnative/k3s',
-    'fullTitle': 'SUSE Rancher Prime: K3s'
+    'fullTitle': 'SUSE Rancher Prime: K3s',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/k3s',
   },
   {
     'url-part': 'os-manager',
     'title': 'OS Manager',
-    'url': 'https://documentation.suse.com/cloudnative/os-manager',
-    'fullTitle': 'SUSE Rancher Prime: OS Manager'
+    'fullTitle': 'SUSE Rancher Prime: OS Manager',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/os-manager',
   },
   {
     'url-part': 'admission-controller',
     'title': 'Admission Controller',
-    'url': 'https://documentation.suse.com/cloudnative/admission-controller',
-    'fullTitle': 'SUSE Security Admission Controller'
+    'fullTitle': 'SUSE Security Admission Controller',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/admission-controller',
   },
   {
     'url-part': 'rke2',
     'title': 'RKE2',
-    'url': 'https://documentation.suse.com/cloudnative/rke2',
-    'fullTitle': 'SUSE Rancher Prime: RKE2'
+    'fullTitle': 'SUSE Rancher Prime: RKE2',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/rke2',
   },
   {
     'url-part': 'suse-observability',
     'title': 'SUSE Observability',
-    'url': 'https://documentation.suse.com/cloudnative/suse-observability',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/suse-observability',
   },
   {
     'url-part': 'rancher-manager',
     'title': 'SUSE Rancher Manager',
-    'url': 'https://documentation.suse.com/cloudnative/rancher-manager',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/rancher-manager',
   },
   {
     'url-part': 'rancher-srfa',
     'title': 'SUSE Rancher for AWS',
-    'url': 'https://documentation.suse.com/cloudnative/rancher-srfa',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/rancher-srfa',
   },
   {
     'url-part': 'security',
     'title': 'SUSE Security',
-    'url': 'https://documentation.suse.com/cloudnative/security',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/security',
   },
   {
     'url-part': 'storage',
     'title': 'SUSE Storage',
-    'url': 'https://documentation.suse.com/cloudnative/storage',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/storage',
   },
   {
     'url-part': 'virtualization',
     'title': 'SUSE Virtualization',
-    'url': 'https://documentation.suse.com/cloudnative/virtualization',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'suse-virtualization',
   },
   {
     'url-part': 'suse-virtual-clusters',
     'title': 'SUSE Virtual Clusters',
-    'url': 'https://documentation.suse.com/cloudnative/suse-virtual-clusters',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/suse-virtual-clusters',
   },
   {
     'url-part': 'rancher-ai',
     'title': 'Liz: The Rancher AI Assistant',
-    'url': 'https://documentation.suse.com/cloudnative/rancher-ai',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/rancher-ai',
   },
   {
     'url-part': 'vulnerability-scanner',
     'title': 'SUSE Security Vulnerability Scanner',
-    'url': 'https://documentation.suse.com/cloudnative/vulnerability-scanner',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/vulnerability-scanner',
+  },
+  {
+    'url-part': 'runtime-enforcer',
+    'title': 'SUSE Security Runtime Enforcer',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative/runtime-enforcer',
   },
 ]
 
