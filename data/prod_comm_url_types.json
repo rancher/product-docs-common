@@ -8,7 +8,6 @@
     "https://documentation.suse.com/cloudnative/rancher-ai/",
     "https://documentation.suse.com/cloudnative/rancher-developer-access/",
     "https://documentation.suse.com/cloudnative/rancher-manager/",
-    "https://documentation.suse.com/cloudnative/rancher-srfa/",
     "https://documentation.suse.com/cloudnative/rke2/",
     "https://documentation.suse.com/cloudnative/security/",
     "https://documentation.suse.com/cloudnative/storage/",
@@ -34,6 +33,7 @@
     "https://turtles.docs.rancher.com"
   ],
   "both": [
+    "https://documentation.suse.com/cloudnative/rancher-srfa/",
     "https://harvesterhci.io/kb",
     "https://longhorn.io/kb/"
   ],
