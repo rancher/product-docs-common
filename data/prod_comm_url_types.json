@@ -39,5 +39,8 @@
   ],
   "deprecated": [
     "https://docs.stackstate.com"
+  ],
+  "archives": [
+    "https://longhorn.io/docs/archives/"
   ]
 }
