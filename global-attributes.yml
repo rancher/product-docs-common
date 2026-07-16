@@ -109,7 +109,7 @@ page-project-data: [
     'url-part': 'virtualization',
     'title': 'SUSE Virtualization',
     'dsc-base-url': *dsc_base,
-    'dsc-base-url2': 'suse-virtualization',
+    'dsc-base-url2': 'cloudnative/virtualization',
   },
   {
     'url-part': 'suse-virtual-clusters',
