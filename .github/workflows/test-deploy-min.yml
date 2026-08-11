@@ -46,7 +46,7 @@ jobs:
         run: make environment
 
       - name: Check for broken symlinks
-        uses: rancher/product-docs-common/.github/actions/check-symlinks-composite-action@776dee012d9ab2f661cdbdeeb16e6ab81e965d5a # v1.0.0
+        uses: rancher/product-docs-common/.github/actions/check-symlinks-composite-action@c5b3d015b5800313b1adbba3c8508fbaa4860852 # v1.0.0
 
       - name: Generate Site
         run: |
