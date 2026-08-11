@@ -122,8 +122,8 @@ page-project-data: [
     'dsc-base-url': *dsc_base,
     'dsc-base-url2': 'cloudnative',
     'dsc-base-url3': 'virtualization',
-    # 'dsc-base-url2': '',
-    # 'dsc-base-url3': 'suse-virtualization',
+    # 'dsc-base-url2': '',  # This is new, upcoming config
+    # 'dsc-base-url3': 'suse-virtualization',  # This is new, upcoming config
   },
   {
     'url-part': 'suse-virtual-clusters',
@@ -152,6 +152,13 @@ page-project-data: [
     'dsc-base-url': *dsc_base,
     'dsc-base-url2': 'cloudnative',
     'dsc-base-url3': 'runtime-enforcer',
+  },
+  {
+    'url-part': 'rancher-developer-access',
+    'title': 'SUSE Rancher Developer Access',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative',
+    'dsc-base-url3': 'rancher-developer-access',
   },
 ]
 
