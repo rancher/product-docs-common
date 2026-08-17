@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+
+# Finds discrepancies between the English and translated docs directories using English as the source of truth.
+# If a file is present in English but missing in a translated version, it's copied over and the nav.adoc is updated, if needed.
+#   A file is only copied if the :page-languages: attribute in the English file includes the target language.
+# If a file is present in a translated version but missing in English, it's removed and the nav.adoc is updated.
+
+set -euo pipefail
+
+# Helper function: Remove nav.adoc entry for a given relative path
+remove_nav_entry() {
+  local target_nav="$1"
+  local rel_path="$2"
+
+  [ -f "$target_nav" ] || return 0
+
+  local pattern="xref:${rel_path}["
+
+  awk -v path_pattern="$pattern" '
+    index($0, path_pattern) == 0 { print }
+  ' "$target_nav" > "${target_nav}.tmp" && mv "${target_nav}.tmp" "$target_nav"
+}
+
+# Helper function: Insert nav.adoc entry preserving relative position from English nav
+add_nav_entry() {
+  local en_nav="$1"
+  local target_nav="$2"
+  local rel_path="$3"
+
+  [ -f "$en_nav" ] || return 0
+  [ -f "$target_nav" ] || touch "$target_nav"
+
+  local pattern="xref:${rel_path}["
+
+  # 1. Get exact matching line from English nav.adoc
+  local en_line=""
+  while IFS= read -r line; do
+    if [[ "$line" == *"*"* && "$line" == *"$pattern"* ]]; then
+      en_line="$line"
+      break
+    fi
+  done < "$en_nav"
+
+  [ -n "$en_line" ] || return 0 # File is not referenced in English nav.adoc
+
+  # Skip if the exact line is already present in target nav.adoc
+  if grep -q -F "$en_line" "$target_nav"; then
+    return 0
+  fi
+
+  # 2. Read English nav.adoc line by line
+  local en_lines=()
+  while IFS= read -r l || [ -n "$l" ]; do
+    en_lines+=("$l")
+  done < "$en_nav"
+
+  # Find index of target entry in English nav
+  local target_idx=-1
+  for i in "${!en_lines[@]}"; do
+    if [[ "${en_lines[$i]}" == *"$pattern"* ]]; then
+      target_idx=$i
+      break
+    fi
+  done
+
+  [ "$target_idx" -ge 0 ] || return 0
+
+  # 3. Search backwards in English nav for a preceding anchor line present in target nav
+  local prev_anchor=""
+  for (( i=target_idx-1; i>=0; i-- )); do
+    local cand="${en_lines[$i]}"
+    if [ -n "$cand" ] && grep -q -F "$cand" "$target_nav"; then
+      prev_anchor="$cand"
+      break
+    fi
+  done
+
+  if [ -n "$prev_anchor" ]; then
+    awk -v anchor="$prev_anchor" -v new_line="$en_line" '
+      { print }
+      $0 == anchor { print new_line }
+    ' "$target_nav" > "${target_nav}.tmp" && mv "${target_nav}.tmp" "$target_nav"
+    return 0
+  fi
+
+  # 4. Search forwards in English nav for a subsequent anchor line present in target nav
+  local next_anchor=""
+  for (( i=target_idx+1; i<${#en_lines[@]}; i++ )); do
+    local cand="${en_lines[$i]}"
+    if [ -n "$cand" ] && grep -q -F "$cand" "$target_nav"; then
+      next_anchor="$cand"
+      break
+    fi
+  done
+
+  if [ -n "$next_anchor" ]; then
+    awk -v anchor="$next_anchor" -v new_line="$en_line" '
+      $0 == anchor { print new_line }
+      { print }
+    ' "$target_nav" > "${target_nav}.tmp" && mv "${target_nav}.tmp" "$target_nav"
+    return 0
+  fi
+
+  # 5. Fallback: Append entry to the end
+  echo "$en_line" >> "$target_nav"
+}
+
+# --------------------------------------------------
+# Main Script
+# --------------------------------------------------
+
+# 1. Resolve Target Directory
+if [ -n "${1:-}" ]; then
+  TARGET_DIR="$1"
+  if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: Specified directory '$TARGET_DIR' does not exist."
+    exit 1
+  fi
+elif [ -d "docs" ]; then
+  TARGET_DIR="docs"
+elif [ -d "versions" ]; then
+  TARGET_DIR="versions"
+else
+  echo "Error: No directory provided and neither 'docs' nor 'versions' exists in $(pwd)."
+  exit 1
+fi
+
+echo "Using target directory: $TARGET_DIR"
+
+# Enable nullglob so empty globs don't cause errors
+shopt -s nullglob
+
+# 2. Iterate through each version directory
+for ver_dir in "$TARGET_DIR"/*/; do
+  [ -d "$ver_dir" ] || continue
+  
+  version="$(basename "$ver_dir")"
+  modules_dir="${ver_dir}modules"
+  en_pages_dir="${modules_dir}/en/pages"
+  en_nav_file="${modules_dir}/en/nav.adoc"
+
+  # Skip if English source directory does not exist
+  if [ ! -d "$en_pages_dir" ]; then
+    echo "Skipping version '$version': 'en/pages' directory missing."
+    continue
+  fi
+
+  # Loop through all language directories in modules/
+  for lang_dir in "$modules_dir"/*/; do
+    [ -d "$lang_dir" ] || continue
+    
+    lang="$(basename "$lang_dir")"
+    
+    # Skip the English directory
+    if [ "$lang" = "en" ]; then
+      continue
+    fi
+
+    other_pages_dir="${lang_dir}pages"
+    other_nav_file="${lang_dir}nav.adoc"
+    mkdir -p "$other_pages_dir"
+
+    # Copy missing English files to the other language module
+    while IFS= read -r -d '' en_file; do
+      rel_path="${en_file#"$en_pages_dir"/}"
+      target_file="${other_pages_dir}/${rel_path}"
+
+      # Check for :page-languages: attribute (REQUIRED for copy)
+      page_langs_attr=$(grep -i -m 1 '^\s*:page-languages:' "$en_file" || true)
+
+      # If the attribute is missing, skip copying this file
+      if [ -z "$page_langs_attr" ]; then
+        continue
+      fi
+
+      # Clean brackets/commas and wrap in spaces for exact matching
+      clean_langs=" $(echo "$page_langs_attr" | sed 's/^\s*:page-languages://i' | tr '[],' '   ') "
+
+      # Skip copying if the target language is NOT in page-languages
+      if [[ ! "$clean_langs" =~ [[:space:]]"$lang"[[:space:]] ]]; then
+        continue
+      fi
+
+      if [ ! -f "$target_file" ]; then
+        echo "[COPY] [$version/$lang] Adding missing file: $rel_path"
+        mkdir -p "$(dirname "$target_file")"
+        cp "$en_file" "$target_file"
+        
+        # Sync nav.adoc entry
+        add_nav_entry "$en_nav_file" "$other_nav_file" "$rel_path"
+      fi
+    done < <(find "$en_pages_dir" -type f -name "*.adoc" -print0)
+
+    # Remove files from other language modules if missing in English
+    while IFS= read -r -d '' other_file; do
+      rel_path="${other_file#"$other_pages_dir"/}"
+      en_file="${en_pages_dir}/${rel_path}"
+
+      if [ ! -f "$en_file" ]; then
+        echo "[REMOVE] [$version/$lang] Removing orphan file: $rel_path"
+        rm -f "$other_file"
+        
+        # Remove nav.adoc entry
+        remove_nav_entry "$other_nav_file" "$rel_path"
+      fi
+    done < <(find "$other_pages_dir" -type f -name "*.adoc" -print0)
+
+  done
+done
+
+echo "Synchronization complete."
