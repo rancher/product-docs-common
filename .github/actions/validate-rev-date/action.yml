@@ -1,0 +1,42 @@
+name: 'Update revdate'
+
+description: 'Updates :revdate: attributes in modified .adoc files when the update revdate label is present.'
+
+inputs:
+  token:
+    required: true
+
+runs:
+  using: 'composite'
+
+  steps:
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+      shell: bash
+
+    - name: Fetch base branch
+      run: |
+        git fetch origin ${{ github.base_ref }}
+      shell: bash
+
+    - name: Run revdate updater
+      id: update-revdate
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        # Skip if label is not present
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, 'update revdate') }}" != "true" ]]; then
+          echo "Label 'update revdate' not found. Skipping."
+          exit 1
+        fi
+
+        ancestor=$(git merge-base origin/${{ github.base_ref }} HEAD)
+
+        helpers/scripts/recurring/validate_rev-date.sh \
+          "$ancestor" \
+          "${{ github.event.pull_request.head.sha }}" \
+          "${{ github.head_ref }}"
+      shell: bash
