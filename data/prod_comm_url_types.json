@@ -11,7 +11,6 @@
     "https://documentation.suse.com/cloudnative/rke2/",
     "https://documentation.suse.com/cloudnative/security/",
     "https://documentation.suse.com/cloudnative/storage/",
-    "https://documentation.suse.com/cloudnative/suse-observability/",
     "https://documentation.suse.com/cloudnative/suse-private-registry/",
     "https://documentation.suse.com/cloudnative/suse-virtual-clusters/",
     "https://documentation.suse.com/cloudnative/virtualization/",
@@ -33,6 +32,7 @@
     "https://turtles.docs.rancher.com"
   ],
   "both": [
+    "https://documentation.suse.com/cloudnative/suse-observability/",
     "https://documentation.suse.com/cloudnative/rancher-srfa/",
     "https://harvesterhci.io/kb",
     "https://longhorn.io/kb/"
