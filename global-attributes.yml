@@ -159,8 +159,8 @@ page-project-data: [
     'dsc-base-url': *dsc_base,
     'dsc-base-url2': 'cloudnative',
     'dsc-base-url3': 'rancher-developer-access',
-  }
-]
+  },
+ ]
 
 language-data:
   - fr:
