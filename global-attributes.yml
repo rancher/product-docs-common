@@ -147,6 +147,16 @@ page-project-data: [
     'dsc-base-url3': 'vulnerability-scanner',
   },
   {
+    # SUSE Security releases: /suse-security/<release>/<lang>/<component>/,
+    # from the release-url-layout extension.
+    'url-part': 'suse-security',
+    'title': 'SUSE Security',
+    'fullTitle': 'SUSE Security',
+    'dsc-base-url': *dsc_base,
+    'dsc-base-url2': 'cloudnative',
+    'dsc-base-url3': 'suse-security',
+  },
+  {
     'url-part': 'runtime-enforcer',
     'title': 'SUSE Security Runtime Enforcer',
     'dsc-base-url': *dsc_base,

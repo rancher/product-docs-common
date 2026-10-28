@@ -366,12 +366,20 @@ module.exports.register = function () {
           "for outputDir", outputDir
         );
         // For both stable and prerelease, create symlinks if or copy
-        // version exists
+        // version exists. The version directory can be missing, for example
+        // when the release-url-layout extension published the component
+        // version under a product release URL instead.
+        let linked = false;
         [
           { versionObj: latestStableObj, linkName: LATEST_SYMLINK },
           { versionObj: latestPrereleaseObj, linkName: DEV_SYMLINK },
         ].forEach(({ versionObj, linkName }) => {
+          if (versionObj && !fs.existsSync(path.join(dirName, versionObj.version))) {
+            dprint("Not linking", linkName, "for", componentName, "because", versionObj.version, "is not published there");
+            return;
+          }
           if (versionObj) {
+            linked = true;
             try {
               dprint(
                 "In sitePublished, for",
@@ -399,6 +407,16 @@ module.exports.register = function () {
             }
           }
         });
+        // Leave nothing behind for a component without published versions:
+        // remove the latest_dev.txt file and the then empty directory.
+        if (!linked && componentName !== 'ROOT') {
+          const latestDevFile = getLatestDevFilePath(outputDir, componentName);
+          if (fs.existsSync(dirName) && fs.readdirSync(dirName).every((entry) => entry === LATEST_DEV_FILE)) {
+            fs.rmSync(latestDevFile, { force: true });
+            fs.rmdirSync(dirName);
+            dprint("Removed", dirName, "because no version of", componentName, "is published there");
+          }
+        }
       },
     );
     // Now adjust index.html, point at latest, not a specific version.
