@@ -14,6 +14,7 @@ const VERSION_MAP = { k3s: ['latest'], 'admission-controller': ['1.38', '1.37'],
 const LAYOUTS = {
   'suse-security': {
     landing: 'kubewarden',
+    aliases: { latest: '6.0.0', dev: '6.0.1' },
     releases: {
       '6.0.1': { 'admission-controller': '1.38' },
       '6.0.0': { 'admission-controller': '1.38' },
@@ -51,6 +52,13 @@ test('a release URL loads the index of the component version of the release', ()
   // Other components do not change.
   assert.deepEqual(load(loader, 'https://docs.example/k3s/latest/en/x.html'),
     ['https://docs.example/lang-indexes/k3s/latest/search-index-en.js'])
+  // The aliases stand for their releases.
+  assert.deepEqual(load(loader, 'https://docs.example/suse-security/latest/de/admission-controller/howtos/x.html'),
+    ['https://docs.example/lang-indexes/admission-controller/1.38/search-index-de.js'])
+  assert.deepEqual(load(loader, 'https://docs.example/suse-security/latest/en/introduction.html'),
+    ['https://docs.example/lang-indexes/kubewarden/6.0.0/search-index-en.js'])
+  assert.deepEqual(load(loader, 'https://docs.example/suse-security/dev/en/introduction.html'),
+    ['https://docs.example/lang-indexes/kubewarden/6.0.1/search-index-en.js'])
   // An unknown release loads nothing.
   assert.deepEqual(load(loader, 'https://docs.example/suse-security/9.9.9/en/introduction.html'), [])
 })
@@ -71,6 +79,7 @@ test('release layouts come from the release-url-layout.json files in the site', 
     fs.writeFileSync(path.join(site, 'suse-security', 'release-url-layout.json'), JSON.stringify({
       url_prefix: 'suse-security',
       landing: 'kubewarden',
+      aliases: { latest: '6.0.0', dev: '6.0.1' },
       releases: [
         { version: '6.0.1', prerelease: true, components: { 'admission-controller': { version: '1.38', home: '6.0.0' } } },
         { version: '6.0.0', prerelease: false, components: { 'admission-controller': { version: '1.38', home: '6.0.0' } } },

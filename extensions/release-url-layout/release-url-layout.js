@@ -25,10 +25,15 @@
 //    releases pin, makes the links to other places go through the site root.
 //    The other releases reach these pages through a symlink (see 6), so a
 //    plain relative link would resolve in the wrong release.
-// 5. beforePublish: checks the result, and writes
-//    /<url_prefix>/release-url-layout.json for split-search-index.js.
+// 5. beforePublish: checks the result, writes
+//    /<url_prefix>/release-url-layout.json for split-search-index.js, and
+//    points the redirect of the site start page, if it is in the product, to
+//    /<url_prefix>/latest/. Removes the links of an earlier build from the
+//    output directory, so that Antora does not write through them.
 // 6. sitePublished: links /<url_prefix>/<release>/<module>/<component> to the
 //    oldest release for each component version that several releases pin.
+//    Then links /<url_prefix>/latest to the newest release that is not a
+//    prerelease, and /<url_prefix>/dev to the newest prerelease, if any.
 //
 // Robustness comes first: the configuration is checked strictly, every move
 // is planned and checked before any file changes, and anything unexpected
@@ -43,6 +48,8 @@ const MANIFEST = 'release-url-layout.json'
 const CONFIG_RX = /^modules\/[^/]+\/partials\/(?:.+\/)?([a-z0-9][a-z0-9-]*)-release-config\.yml$/
 const SEGMENT_RX = /^[a-z][a-z0-9-]*$/
 const RELEASE_RX = /^[0-9A-Za-z][0-9A-Za-z.-]*$/
+const LATEST = 'latest'
+const DEV = 'dev'
 const SUPPORTED_ANTORA_RX = /^3\.[12]\./
 const SCHEME_RX = /^[a-z][a-z0-9+.-]*:/i
 
@@ -80,6 +87,7 @@ function validateConfig (config, source, name) {
     if (typeof release.version !== 'string' || !RELEASE_RX.test(release.version)) {
       bad(`${where}: version must be a string that matches ${RELEASE_RX}`)
     }
+    if (release.version === LATEST || release.version === DEV) bad(`${where}: ${release.version} is a reserved name, not a release`)
     if (versions.has(release.version)) bad(`${where}: release ${release.version} appears more than once`)
     versions.add(release.version)
     if (release.prerelease != null && typeof release.prerelease !== 'boolean') bad(`${where}: prerelease must be true or false`)
@@ -452,11 +460,44 @@ function verify (plan, contentCatalog) {
   }
 }
 
+// The releases that /<url_prefix>/latest and /<url_prefix>/dev link to,
+// chosen as vlp.js chooses the latest and dev component versions: the newest
+// release that is not a prerelease, and the newest prerelease. Releases are
+// newest first. Leaves out an alias without a release.
+function aliases (product) {
+  const result = {}
+  const latest = product.releases.find((release) => !release.prerelease)
+  const dev = product.releases.find((release) => release.prerelease)
+  if (latest) result[LATEST] = latest.version
+  if (dev) result[DEV] = dev.version
+  return result
+}
+
+// Points Antora's redirect from the site root to the start page, if the start
+// page is in the latest release, to the same page under /<url_prefix>/latest/.
+// Only the static redirect facility writes the redirect into the file; for
+// the other facilities, the redirect stays as it is. The canonical URL, if
+// any, keeps the release. Returns true if it changed the redirect.
+function redirectStartPage (plan, contentCatalog) {
+  const latest = aliases(plan.product)[LATEST]
+  if (!latest) return false
+  const releasePath = `${plan.product.prefix}/${latest}/`
+  const file = contentCatalog.getFiles().find(({ src, out }) => src?.family === 'alias' && out?.path === 'index.html')
+  if (!file?.contents || !file.rel?.pub?.url?.startsWith('/' + releasePath)) return false
+  const html = file.contents.toString()
+  const changed = html.split(/(<link rel="canonical"[^>]*>)/).map((part, i) =>
+    i % 2 ? part : part.replaceAll(releasePath, `${plan.product.prefix}/${LATEST}/`)).join('')
+  if (changed === html) return false
+  file.contents = Buffer.from(changed)
+  return true
+}
+
 function manifest (plan) {
   const { product, pinnedBy } = plan
   return {
     url_prefix: product.prefix,
     landing: product.landing,
+    aliases: aliases(product),
     releases: product.releases.map((release) => ({
       version: release.version,
       prerelease: release.prerelease,
@@ -471,7 +512,10 @@ function manifest (plan) {
 // Step 6: sitePublished -----------------------------------------------------
 
 // The links for one product: [link path, target], relative to the output
-// directory and to the folder of the link.
+// directory and to the folder of the link. The links of the releases to
+// shared component versions come first, then the links of the aliases to
+// releases, because a copy of a release must include the copies of its shared
+// component versions.
 function symlinks (plan, modules) {
   const links = []
   for (const release of plan.product.releases) {
@@ -483,6 +527,9 @@ function symlinks (plan, modules) {
         links.push([posix.join(plan.product.prefix, release.version, module, name), posix.join('..', '..', home, module, name)])
       }
     }
+  }
+  for (const [alias, release] of Object.entries(aliases(plan.product))) {
+    links.push([posix.join(plan.product.prefix, alias), release])
   }
   return links
 }
@@ -497,6 +544,27 @@ function createLinks (outputDir, links, copy) {
     if (copy) fs.cpSync(targetPath, linkPath, { recursive: true })
     else fs.symlinkSync(target, linkPath)
   }
+}
+
+// Removes the symlinks under a folder of the output directory, without
+// following them. Returns the number of symlinks removed.
+function removeLinks (dir) {
+  if (isSymlink(dir)) {
+    fs.unlinkSync(dir)
+    return 1
+  }
+  if (!fs.existsSync(dir)) return 0
+  let count = 0
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entryPath = path.join(dir, entry.name)
+    if (entry.isSymbolicLink()) {
+      fs.unlinkSync(entryPath)
+      count++
+    } else if (entry.isDirectory()) {
+      count += removeLinks(entryPath)
+    }
+  }
+  return count
 }
 
 function isSymlink (file) {
@@ -520,6 +588,10 @@ function checkPlaybook (playbook, antoraVersion) {
   if (destinations?.length && destinations.some((it) => (it.provider || 'fs') !== 'fs')) {
     fail('the playbook must publish to the file system (output.dir), because the extension creates symlinks')
   }
+}
+
+function outputDirOf (playbook) {
+  return path.resolve(playbook.dir || process.cwd(), playbook.output?.dir || 'build/site')
 }
 
 function antoraVersionFor (playbook) {
@@ -572,22 +644,26 @@ module.exports.register = function () {
   })
 
   this.once('beforePublish', ({ contentCatalog, siteCatalog }) => {
+    const outputDir = outputDirOf(playbook)
     for (const plan of plans) {
+      const removed = removeLinks(path.join(outputDir, plan.product.prefix))
+      if (removed) logger.info('%s: removed %d links of an earlier build', plan.product.source, removed)
       verify(plan, contentCatalog)
       const out = { path: posix.join(plan.product.prefix, MANIFEST) }
       if (siteCatalog.getFiles().some((file) => file.out?.path === out.path)) fail(`${out.path} already exists`)
       siteCatalog.addFile({ contents: Buffer.from(JSON.stringify(manifest(plan), null, 2) + '\n'), out })
+      if (redirectStartPage(plan, contentCatalog)) logger.info('%s: the site start page redirects to /%s/%s/', plan.product.source, plan.product.prefix, LATEST)
     }
   })
 
   this.once('sitePublished', () => {
     if (!plans.length) return
-    const outputDir = path.resolve(playbook.dir || process.cwd(), playbook.output?.dir || 'build/site')
+    const outputDir = outputDirOf(playbook)
     const copy = playbook.asciidoc?.attributes?.['build-environment'] === 'netlify'
     for (const plan of plans) {
       const links = symlinks(plan, plan.modules)
       createLinks(outputDir, links, copy)
-      logger.info('%s: %s %d release paths to shared component versions', plan.product.source, copy ? 'copied' : 'linked', links.length)
+      logger.info('%s: %s %d release and alias paths', plan.product.source, copy ? 'copied' : 'linked', links.length)
     }
   })
 }
@@ -602,8 +678,12 @@ module.exports._internal = {
   checkContentLinks,
   anchorSharedLinks,
   verify,
+  aliases,
+  redirectStartPage,
   manifest,
   symlinks,
+  createLinks,
+  removeLinks,
   checkPlaybook,
   resolveUrl,
   isRelative,
