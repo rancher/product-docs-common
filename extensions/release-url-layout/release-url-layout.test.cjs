@@ -44,11 +44,78 @@ test('validation rejects a bad configuration', () => {
   assert.throws(bad((c) => ({ ...c, releases: [] })), /at least one release/)
   assert.throws(bad((c) => ({ ...c, releases: [r600, r600] })), /6.0.0 appears more than once/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, version: '../6' }] })), /version must be a string that matches/)
+  assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, version: 'latest' }] })), /latest is a reserved name/)
+  assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, version: 'dev' }] })), /dev is a reserved name/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, notes: 'x' }] })), /releases\[0\]: unknown key notes/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, components: { kubewarden: '1.0' } }] })), /kubewarden is the landing component/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, components: { 'Bad/Name': '1.0' } }] })), /component name Bad\/Name must match/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, components: { 'admission-controller': 1.38 } }] })), /must be a string/)
   assert.throws(bad((c) => ({ ...c, releases: [{ ...r600, prerelease: 'yes' }] })), /prerelease must be true or false/)
+})
+
+test('latest is the newest release that is not a prerelease, dev the newest prerelease', () => {
+  const r602 = { ...r601, version: '6.0.2' }
+  assert.deepEqual(ext.aliases(product(r601, r600)), { latest: '6.0.0', dev: '6.0.1' })
+  assert.deepEqual(ext.aliases(product(r602, r601, r600)), { latest: '6.0.0', dev: '6.0.2' })
+  assert.deepEqual(ext.aliases(product(r600)), { latest: '6.0.0' })
+  assert.deepEqual(ext.aliases(product(r601)), { dev: '6.0.1' })
+})
+
+test('the redirect of the site start page goes to latest if the start page is in the latest release', () => {
+  const redirect = (target, extra = '') => ({
+    src: { family: 'alias' },
+    out: { path: 'index.html' },
+    rel: { pub: { url: `/${target}` } },
+    contents: Buffer.from(`${extra}<script>location="${target}"</script>\n<meta http-equiv="refresh" content="0; url=${target}">\n<a href="${target}">${target}</a>`),
+  })
+  const catalog = (...files) => ({ getFiles: () => files })
+  const plan = { product: product(r601, r600) }
+  const file = redirect('suse-security/6.0.0/en/introduction.html', '<link rel="canonical" href="https://docs.example/suse-security/6.0.0/en/introduction.html">\n')
+  assert.equal(ext.redirectStartPage(plan, catalog(file)), true)
+  assert.equal(file.contents.toString(),
+    '<link rel="canonical" href="https://docs.example/suse-security/6.0.0/en/introduction.html">\n' +
+    '<script>location="suse-security/latest/en/introduction.html"</script>\n' +
+    '<meta http-equiv="refresh" content="0; url=suse-security/latest/en/introduction.html">\n' +
+    '<a href="suse-security/latest/en/introduction.html">suse-security/latest/en/introduction.html</a>')
+  // Not in the latest release, not in the product, or no contents: no change.
+  for (const other of [redirect('suse-security/6.0.1/en/introduction.html'), redirect('k3s/latest/en/introduction.html'), { ...redirect('suse-security/6.0.0/en/x.html'), contents: null }]) {
+    const before = other.contents?.toString()
+    assert.equal(ext.redirectStartPage(plan, catalog(other)), false)
+    assert.equal(other.contents?.toString(), before)
+  }
+  // No release that is not a prerelease: no latest.
+  assert.equal(ext.redirectStartPage({ product: product(r601) }, catalog(redirect('suse-security/6.0.1/en/introduction.html'))), false)
+})
+
+test('the links make the shared component versions and the releases reachable through the aliases', () => {
+  const fs = require('node:fs')
+  const os = require('node:os')
+  const path = require('node:path')
+  const links = [
+    ['suse-security/6.0.1/en/admission-controller', '../../6.0.0/en/admission-controller'],
+    ['suse-security/latest', '6.0.0'],
+    ['suse-security/dev', '6.0.1'],
+  ]
+  for (const copy of [false, true]) {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'release-url-layout-'))
+    try {
+      fs.mkdirSync(path.join(out, 'suse-security/6.0.0/en/admission-controller'), { recursive: true })
+      fs.mkdirSync(path.join(out, 'suse-security/6.0.1/en'), { recursive: true })
+      fs.writeFileSync(path.join(out, 'suse-security/6.0.0/en/admission-controller/x.html'), 'x')
+      ext.createLinks(out, links, copy)
+      for (const release of ['6.0.0', '6.0.1', 'latest', 'dev']) {
+        assert.equal(fs.readFileSync(path.join(out, 'suse-security', release, 'en/admission-controller/x.html'), 'utf8'), 'x')
+      }
+      assert.equal(fs.lstatSync(path.join(out, 'suse-security/latest')).isSymbolicLink(), !copy)
+      assert.throws(() => ext.createLinks(out, [['suse-security/latest', '6.0.0']], copy), /already exists/)
+      // The next build removes the links, not the files they point to.
+      assert.equal(ext.removeLinks(path.join(out, 'suse-security')), copy ? 0 : 3)
+      assert.equal(fs.existsSync(path.join(out, 'suse-security/latest')), copy)
+      assert.equal(fs.readFileSync(path.join(out, 'suse-security/6.0.0/en/admission-controller/x.html'), 'utf8'), 'x')
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true })
+    }
+  }
 })
 
 // A content aggregate without Antora: buckets with files that can be cloned.
@@ -232,7 +299,10 @@ test('moves pinned component versions and landing copies under the release', fix
   assert.deepEqual(ext.symlinks(plan, result.modules), [
     ['suse-security/6.0.1/de/admission-controller', '../../6.0.0/de/admission-controller'],
     ['suse-security/6.0.1/en/admission-controller', '../../6.0.0/en/admission-controller'],
+    ['suse-security/latest', '6.0.0'],
+    ['suse-security/dev', '6.0.1'],
   ])
+  assert.deepEqual(ext.manifest(plan).aliases, { latest: '6.0.0', dev: '6.0.1' })
   assert.deepEqual(ext.manifest(plan).releases[0], {
     version: '6.0.1',
     prerelease: true,

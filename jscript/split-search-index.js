@@ -284,7 +284,8 @@ function sortVersions(versions) {
 // release-url-layout extension writes, map a release URL,
 // /<url_prefix>/<release>/<lang>/<component>/..., to the component version of
 // its search index. A landing page, /<url_prefix>/<release>/<lang>/..., maps to
-// the landing component, whose version is the release.
+// the landing component, whose version is the release. The aliases, latest
+// and dev, stand for the releases that they link to.
 function readReleaseLayouts(siteDir) {
   const layouts = {};
   for (const entry of fs.readdirSync(siteDir, { withFileTypes: true })) {
@@ -301,14 +302,14 @@ function readReleaseLayouts(siteDir) {
         Object.entries(release.components).map(([component, { version }]) => [component, version])
       );
     }
-    layouts[manifest.url_prefix] = { landing: manifest.landing, releases };
+    layouts[manifest.url_prefix] = { landing: manifest.landing, aliases: manifest.aliases || {}, releases };
   }
   return layouts;
 }
 
 function buildReleaseLayoutCode(releaseLayouts) {
   if (!releaseLayouts || !Object.keys(releaseLayouts).length) return '';
-  return `  var releaseLayouts = ${JSON.stringify(releaseLayouts)};\n  var layout = component && Object.prototype.hasOwnProperty.call(releaseLayouts, component) && releaseLayouts[component];\n  if (layout) {\n    var release = Object.prototype.hasOwnProperty.call(layout.releases, version) && layout.releases[version];\n    if (!release) return;\n    var releaseComponent = relativePathname.split('/')[4];\n    if (releaseComponent && Object.prototype.hasOwnProperty.call(release, releaseComponent)) {\n      component = releaseComponent;\n      version = release[releaseComponent];\n    } else {\n      component = layout.landing;\n    }\n  }\n`;
+  return `  var releaseLayouts = ${JSON.stringify(releaseLayouts)};\n  var layout = component && Object.prototype.hasOwnProperty.call(releaseLayouts, component) && releaseLayouts[component];\n  if (layout) {\n    if (Object.prototype.hasOwnProperty.call(layout.aliases || {}, version)) version = layout.aliases[version];\n    var release = Object.prototype.hasOwnProperty.call(layout.releases, version) && layout.releases[version];\n    if (!release) return;\n    var releaseComponent = relativePathname.split('/')[4];\n    if (releaseComponent && Object.prototype.hasOwnProperty.call(release, releaseComponent)) {\n      component = releaseComponent;\n      version = release[releaseComponent];\n    } else {\n      component = layout.landing;\n    }\n  }\n`;
 }
 
 function buildRootLoader(targetLangs, versionMap, releaseLayouts) {

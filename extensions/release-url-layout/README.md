@@ -6,6 +6,7 @@ prefix, for example:
 ```text
 /suse-security/6.0.0/en/admission-controller/introduction.html
 /suse-security/6.0.0/en/introduction.html        (landing page of the release)
+/suse-security/latest/en/introduction.html        (the newest release)
 ```
 
 The language (the Antora module) is the third URL segment, as in the rest of
@@ -72,9 +73,19 @@ Without a configuration file, the extension does nothing.
    release, go through the site root.
 5. `beforePublish`: checks the result, and writes
    `/<url_prefix>/release-url-layout.json`. `split-search-index.js` reads it
-   to map release URLs to the search index of their component version.
+   to map release URLs to the search index of their component version. If the
+   site start page is in the newest release that is not a prerelease, points
+   the redirect from the site root to the same page under
+   `/<url_prefix>/latest/` (static redirect facility only). Removes the links
+   of an earlier build from `/<url_prefix>/` in the output directory, so that
+   Antora does not write through them.
 6. `sitePublished`: links `/<url_prefix>/<release>/<module>/<component>` to
    the oldest release for each component version that several releases pin.
+   Then links the aliases to releases, as `vlp.js` does for component
+   versions:
+   - `/<url_prefix>/latest`: the newest release that is not a prerelease.
+   - `/<url_prefix>/dev`: the newest prerelease, if there is one.
+
    With the AsciiDoc attribute `build-environment: netlify`, it copies instead.
 
 The extension never changes xrefs. A `latest@` xref still means the latest
@@ -84,7 +95,8 @@ version that is built.
 
 The build stops if:
 
-- The configuration has an unknown key or a value of the wrong type.
+- The configuration has an unknown key or a value of the wrong type, or a
+  release is called `latest` or `dev`.
 - A release pins a component version that is not in the site, or pins a
   prerelease without `prerelease: true`.
 - The URL prefix is the name of a component, or two products share a
