@@ -425,10 +425,10 @@ if [ -n "$COMMIT_HASH" ]; then
   staged_files=$(git diff-tree --no-commit-id --name-only -r --diff-filter=AM "$COMMIT_HASH" -- "$SOURCE_PATH")
 elif [ "$STAGED_ONLY" = true ]; then
   # Get a list of files staged for commit within the specified source path
-  staged_files=$(git diff --name-only --diff-filter=AM --cached -- "$SOURCE_PATH"**)
+  staged_files=$(git diff --name-only --diff-filter=AM --cached -- "$SOURCE_PATH")
 else
   # Get a list of modified files (staged + unstaged) within the specified source path
-  staged_files=$(git diff --name-only --diff-filter=AM HEAD -- "$SOURCE_PATH"**)
+  staged_files=$(git diff --name-only --diff-filter=AM HEAD -- "$SOURCE_PATH")
 fi
 
 if [ -z "$staged_files" ]; then
@@ -459,10 +459,15 @@ while IFS= read -r file; do
     # Loop through each target version directory
     for version in "${TARGET_VERSIONS[@]}"; do
       # Construct the destination path by replacing the source version with the target version number
-      dest_file="${file/#"$VERSIONS_DIR_BASE/$SOURCE_VERSION_NAME"/"$VERSIONS_DIR_BASE/$version"}"
-      if [[ "$dest_file" == "$file" ]]; then
-        dest_file="${file/$SOURCE_VERSION_NAME/$version}"
-      fi
+      dest_file="$file"
+      case "$dest_file" in
+        "$VERSIONS_DIR_BASE/$SOURCE_VERSION_NAME"/*)
+          dest_file="$VERSIONS_DIR_BASE/$version/${dest_file#"$VERSIONS_DIR_BASE/$SOURCE_VERSION_NAME/"}"
+          ;;
+        *)
+          dest_file="${dest_file/$SOURCE_VERSION_NAME/$version}"
+          ;;
+      esac
 
       # Get the directory part of the destination path
       dest_dir=$(dirname "$dest_file")
