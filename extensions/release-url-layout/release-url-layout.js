@@ -3,10 +3,11 @@
 // Publishes the releases of a product under one URL prefix.
 //
 // A product is a landing component and some component versions, pinned by
-// product releases. A content repository describes a product in a partial
-// named <product>-release-config.yml. For example, SUSE Security:
-// shared/modules/en/partials/product-specific/suse-security-release-config.yml
-// in rancher/suse-security-product-docs.
+// product releases. A content repository describes a product in
+// shared/modules/ROOT/partials/releases/<product>.yml. For example, SUSE
+// Security: releases/suse-security.yml in rancher/suse-security-product-docs.
+// A product with "releases: versions" (each version of one component is a
+// release) is already at its own URLs, so this extension ignores it.
 //
 // For each product, this extension:
 //
@@ -45,7 +46,8 @@ const posix = path.posix
 
 const NAME = 'release-url-layout'
 const MANIFEST = 'release-url-layout.json'
-const CONFIG_RX = /^modules\/[^/]+\/partials\/(?:.+\/)?([a-z0-9][a-z0-9-]*)-release-config\.yml$/
+const CONFIG_COMPONENT = 'shared'
+const CONFIG_RX = /^modules\/ROOT\/partials\/releases\/([a-z0-9][a-z0-9-]*)\.yml$/
 const SEGMENT_RX = /^[a-z][a-z0-9-]*$/
 const RELEASE_RX = /^[0-9A-Za-z][0-9A-Za-z.-]*$/
 const LATEST = 'latest'
@@ -74,10 +76,12 @@ function validateConfig (config, source, name) {
   const product = config.product
   if (!isObject(product)) bad('product must be a map')
   onlyKeys(product, ['component', 'landing_version', 'url_prefix'], 'product')
-  for (const key of ['component', 'landing_version', 'url_prefix']) {
+  for (const key of ['component', 'landing_version']) {
     if (typeof product[key] !== 'string' || !product[key]) bad(`product.${key} must be a string`)
   }
-  if (!SEGMENT_RX.test(product.url_prefix)) bad(`product.url_prefix must match ${SEGMENT_RX}`)
+  // The URL prefix is the product name (the file name), unless the file sets one.
+  const prefix = product.url_prefix ?? name
+  if (typeof prefix !== 'string' || !SEGMENT_RX.test(prefix)) bad(`product.url_prefix must match ${SEGMENT_RX}`)
   if (!Array.isArray(config.releases) || !config.releases.length) bad('releases must be a list with at least one release')
   const versions = new Set()
   const releases = config.releases.map((release, i) => {
@@ -106,25 +110,25 @@ function validateConfig (config, source, name) {
     source,
     landing: product.component,
     landingVersion: product.landing_version,
-    prefix: product.url_prefix,
+    prefix,
     releases,
   }
 }
 
-// Finds and validates the configuration files in the content aggregate. A
-// configuration file must be in a component that has one version, for
-// example shared, so that there is no doubt about which file counts.
+// Finds and validates the product files in the content aggregate. A product
+// file is in the shared component, which has one version in every repository.
+// A product with "releases: versions" is left out.
 function loadProducts (contentAggregate, parse) {
-  const versionsOf = new Map()
-  for (const bucket of contentAggregate) versionsOf.set(bucket.name, (versionsOf.get(bucket.name) || 0) + 1)
   const products = []
   for (const bucket of contentAggregate) {
+    if (bucket.name !== CONFIG_COMPONENT) continue
     for (const file of bucket.files) {
       const match = CONFIG_RX.exec(file.src?.path ?? file.path)
       if (!match) continue
       const source = `${match[0]} in ${bucket.version}@${bucket.name}`
-      if (versionsOf.get(bucket.name) !== 1) fail(`${source}: the file must be in a component with one version, for example shared`)
-      products.push(validateConfig(parse(file.contents.toString()), source, match[1]))
+      const config = parse(file.contents.toString())
+      if (config?.releases === 'versions') continue
+      products.push(validateConfig(config, source, match[1]))
     }
   }
   const owner = new Map()

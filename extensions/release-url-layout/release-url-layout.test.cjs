@@ -124,7 +124,7 @@ const fakeFile = (path, contents = '') => {
   file.clone = () => ({ ...file, src: { ...file.src } })
   return file
 }
-const configFile = (data, path = 'modules/en/partials/product-specific/suse-security-release-config.yml') =>
+const configFile = (data, path = 'modules/ROOT/partials/releases/suse-security.yml') =>
   fakeFile(path, JSON.stringify(data))
 const bucket = (name, version, files = [], extra = {}) => ({ name, version, title: name, files, ...extra })
 const fakeAggregate = () => [
@@ -138,20 +138,33 @@ const fakeAggregate = () => [
   bucket('k3s', 'latest'),
 ]
 
-test('a configuration file must be in a component with one version', () => {
-  const aggregate = [bucket('docs', '1.0', [configFile(config(r600))]), bucket('docs', '2.0')]
-  assert.throws(() => ext.loadProducts(aggregate, JSON.parse), /must be in a component with one version/)
-  assert.deepEqual(ext.loadProducts([bucket('docs', '1.0', [fakeFile('modules/en/partials/notes.yml', '{}')])], JSON.parse), [])
+test('only a product file in the shared component counts', () => {
+  assert.deepEqual(ext.loadProducts([bucket('docs', '1.0', [configFile(config(r600))])], JSON.parse), [])
+  assert.deepEqual(ext.loadProducts([bucket('shared', 'latest', [fakeFile('modules/ROOT/partials/notes.yml', '{}')])], JSON.parse), [])
+  assert.deepEqual(ext.loadProducts([bucket('shared', 'latest', [configFile(config(r600), 'modules/en/partials/releases/suse-security.yml')])], JSON.parse), [])
+  assert.equal(ext.loadProducts([bucket('shared', 'latest', [configFile(config(r600))])], JSON.parse).length, 1)
+})
+
+test('the URL prefix is the product name unless the file sets one', () => {
+  const { url_prefix: _, ...product } = config(r600).product
+  const [loaded] = ext.loadProducts([bucket('shared', 'latest', [configFile({ product, releases: [r600] })])], JSON.parse)
+  assert.equal(loaded.name, 'suse-security')
+  assert.equal(loaded.prefix, 'suse-security')
+})
+
+test('a product with releases: versions is ignored', () => {
+  const rancher = { product: { component: 'rancher-manager' }, releases: 'versions' }
+  assert.deepEqual(ext.loadProducts([bucket('shared', 'latest', [configFile(rancher, 'modules/ROOT/partials/releases/rancher-manager.yml')])], JSON.parse), [])
 })
 
 test('two products cannot share a component or a URL prefix', () => {
   const other = { product: { component: 'other', landing_version: '1', url_prefix: 'other' }, releases: [r600] }
   assert.throws(() => ext.loadProducts([
-    bucket('shared', 'latest', [configFile(config(r600)), configFile(other, 'modules/en/partials/other-release-config.yml')]),
+    bucket('shared', 'latest', [configFile(config(r600)), configFile(other, 'modules/ROOT/partials/releases/other.yml')]),
   ], JSON.parse), /admission-controller is in .* and in /)
   const prefix = { product: { component: 'other', landing_version: '1', url_prefix: 'suse-security' }, releases: [{ version: '1', components: { z: '1' } }] }
   assert.throws(() => ext.loadProducts([
-    bucket('shared', 'latest', [configFile(config(r600)), configFile(prefix, 'modules/en/partials/other-release-config.yml')]),
+    bucket('shared', 'latest', [configFile(config(r600)), configFile(prefix, 'modules/ROOT/partials/releases/other.yml')]),
   ], JSON.parse), /url_prefix suse-security is in/)
 })
 
@@ -247,7 +260,7 @@ const PAGES = [
 
 function site ({ releases = [r601, r600], extraBuckets = [], extraFiles = {} } = {}) {
   const aggregate = [
-    { name: 'shared', version: 'latest', title: 'shared', origins: [ORIGIN], files: [antoraFile('modules/en/partials/product-specific/suse-security-release-config.yml', JSON.stringify(config(...releases)))] },
+    { name: 'shared', version: 'latest', title: 'shared', origins: [ORIGIN], files: [antoraFile('modules/ROOT/partials/releases/suse-security.yml', JSON.stringify(config(...releases)))] },
     componentBucket('kubewarden', '1.0', ['modules/en/pages/introduction.adoc', ...(extraFiles.kubewarden || [])]),
     componentBucket('admission-controller', '1.39', PAGES, { prerelease: '-dev' }),
     componentBucket('admission-controller', '1.38', [...PAGES, ...(extraFiles['admission-controller'] || [])]),

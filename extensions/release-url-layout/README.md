@@ -15,17 +15,18 @@ the site. The UI helpers in dsc-style-bundle, `search-ui.js`, and
 
 ## Configuration
 
-A content repository describes a product in a partial named
-`<product>-release-config.yml`. The partial must be in a component with one
-version, for example `shared`. Example:
-`shared/modules/en/partials/product-specific/suse-security-release-config.yml`
-in rancher/suse-security-product-docs.
+A content repository describes a product in the product file
+`shared/modules/ROOT/partials/releases/<product>.yml`. `<product>` is a short
+name, for example `suse-security`. In a site with many repositories, the
+`shared` components merge, so each product needs its own name. The release
+selector and the PDF build in dsc-style-bundle read the same file. Example:
+`releases/suse-security.yml` in rancher/suse-security-product-docs.
 
 ```yaml
 product:
   component: kubewarden        # the landing component
   landing_version: '1.0'       # its version to publish for each release
-  url_prefix: suse-security    # the first URL segment
+  url_prefix: suse-security    # optional; the first URL segment (default: the product name)
 releases:                      # newest first
   - version: '6.0.1'
     prerelease: true           # optional; required if a pin is a prerelease
@@ -37,6 +38,18 @@ releases:                      # newest first
       admission-controller: '1.38'
       network-enforcer: '0.3'
 ```
+
+A product whose releases are the versions of one component says
+`releases: versions`, for example Rancher Manager:
+
+```yaml
+product:
+  component: rancher-manager
+releases: versions
+```
+
+Its pages are already at their own URLs, so this extension ignores it. The PDF
+build in dsc-style-bundle uses it.
 
 The `productreleases` helper in dsc-style-bundle reads the same file for the
 "Component / version" selector and the page version menu.
